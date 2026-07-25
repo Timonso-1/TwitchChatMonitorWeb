@@ -44,6 +44,17 @@ export const NAVIGATION: NavSection[] = [
     ],
   },
   {
+    label: "Werkzeuge",
+    items: [
+      {
+        href: "/tools/lookup",
+        label: "Name-/ID-Konverter",
+        icon: "ArrowLeftRight",
+        permission: PERMISSIONS.VIEWERS_VIEW,
+      },
+    ],
+  },
+  {
     label: "Administration",
     items: [
       { href: "/accounts", label: "Accounts", icon: "UserCog", permission: PERMISSIONS.ACCOUNTS_VIEW },

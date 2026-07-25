@@ -68,6 +68,7 @@ export default async function EventsPage({
         currentValue={trend.current}
         previousValue={trend.previous}
         totalValue={trend.total}
+        comparable={trend.comparable}
         currentLabel={`Events (${label})`}
         totalLabel="Events insgesamt"
         icon={Zap}

@@ -1,62 +1,70 @@
-"use client";
-
-import * as React from "react";
-import { BarChart3, MessageSquare, ShieldAlert, StickyNote, Zap } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, MessageSquare, ShieldAlert, StickyNote, Zap, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { buildQueryString, cn, formatNumber } from "@/lib/utils";
 
-interface ViewerTabsProps {
-  overview: React.ReactNode;
-  messages: React.ReactNode | null;
-  events: React.ReactNode | null;
-  moderation: React.ReactNode | null;
-  notes: React.ReactNode | null;
-  counts: {
-    messages: number;
-    events: number;
-    moderation: number;
-    notes: number;
-  };
+export type ViewerTabKey = "overview" | "messages" | "events" | "moderation" | "notes";
+
+export const VIEWER_TABS: Array<{ key: ViewerTabKey; label: string; icon: LucideIcon }> = [
+  { key: "overview", label: "Überblick", icon: BarChart3 },
+  { key: "messages", label: "Nachrichten", icon: MessageSquare },
+  { key: "events", label: "Events", icon: Zap },
+  { key: "moderation", label: "Moderation", icon: ShieldAlert },
+  { key: "notes", label: "Notizen", icon: StickyNote },
+];
+
+export function normalizeViewerTab(value: unknown): ViewerTabKey {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const match = VIEWER_TABS.find((tab) => tab.key === raw);
+  return match?.key ?? "overview";
+}
+
+interface ViewerTabsNavProps {
+  /** Basispfad des Profils, z. B. "/viewers/12345". */
+  basePath: string;
+  active: ViewerTabKey;
+  /** Sichtbare Reiter – abhaengig von den Rechten. */
+  available: ViewerTabKey[];
+  counts: Partial<Record<ViewerTabKey, number>>;
 }
 
 /**
- * Reiter-Navigation des Chatter-Profils.
- * Die Inhalte werden serverseitig gerendert und hier nur eingehaengt.
+ * Reiter als Links statt als Client-State.
+ * Dadurch bleibt der aktive Reiter beim Blaettern erhalten und die
+ * Seite laesst sich direkt auf einen Reiter verlinken.
  */
-export function ViewerTabs({ overview, messages, events, moderation, notes, counts }: ViewerTabsProps) {
-  const tabs = [
-    { value: "overview", label: "Überblick", icon: BarChart3, content: overview, count: null as number | null },
-    { value: "messages", label: "Nachrichten", icon: MessageSquare, content: messages, count: counts.messages },
-    { value: "events", label: "Events", icon: Zap, content: events, count: counts.events },
-    { value: "moderation", label: "Moderation", icon: ShieldAlert, content: moderation, count: counts.moderation },
-    { value: "notes", label: "Notizen", icon: StickyNote, content: notes, count: counts.notes },
-  ].filter((tab) => tab.content !== null);
+export function ViewerTabsNav({ basePath, active, available, counts }: ViewerTabsNavProps) {
+  const tabs = VIEWER_TABS.filter((tab) => available.includes(tab.key));
 
   return (
-    <Tabs defaultValue="overview" className="space-y-4">
-      <TabsList className="w-full justify-start sm:w-auto">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
+    <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-thin rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = tab.key === active;
+        const count = counts[tab.key];
 
-          return (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              <Icon />
-              {tab.label}
-              {tab.count !== null && tab.count > 0 && (
-                <Badge variant="muted" className="ml-0.5 px-1 py-0 text-[0.65rem]">
-                  {tab.count}
-                </Badge>
-              )}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-
-      {tabs.map((tab) => (
-        <TabsContent key={tab.value} value={tab.value}>
-          {tab.content}
-        </TabsContent>
-      ))}
-    </Tabs>
+        return (
+          <Link
+            key={tab.key}
+            href={`${basePath}${buildQueryString({ tab: tab.key === "overview" ? undefined : tab.key })}`}
+            aria-current={isActive ? "page" : undefined}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[5px] px-3 py-1.5 text-sm transition-colors",
+              isActive
+                ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
+                : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]",
+            )}
+          >
+            <Icon className="size-3.5 shrink-0" />
+            {tab.label}
+            {count !== undefined && count > 0 && (
+              <Badge variant="muted" className="ml-0.5 px-1 py-0 text-[0.65rem]">
+                {formatNumber(count)}
+              </Badge>
+            )}
+          </Link>
+        );
+      })}
+    </div>
   );
 }

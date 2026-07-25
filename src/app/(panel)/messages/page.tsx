@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Download, MessageSquare, MessagesSquare } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { ChatName } from "@/components/chat-name";
 import { ListTrendHeader } from "@/components/list-trend-header";
 import { ChatRoleBadges } from "@/components/twitch-badges";
 import { ViewerAvatar } from "@/components/viewer-avatar";
@@ -102,6 +103,7 @@ export default async function MessagesPage({
         currentValue={trend.current}
         previousValue={trend.previous}
         totalValue={trend.total}
+        comparable={trend.comparable}
         currentLabel={`Nachrichten (${label})`}
         totalLabel="Nachrichten insgesamt"
         icon={MessageSquare}
@@ -183,12 +185,10 @@ export default async function MessagesPage({
                         />
 
                         <div className="flex min-w-0 flex-wrap items-center gap-1">
-                          <Link
-                            href={`/viewers/${message.userId}`}
-                            className="max-w-28 truncate font-medium hover:underline"
-                            style={message.color ? { color: message.color } : undefined}
-                          >
-                            {message.displayName ?? message.userName}
+                          <Link href={`/viewers/${message.userId}`} className="max-w-28 truncate hover:underline">
+                            <ChatName color={message.color} className="font-medium">
+                              {message.displayName ?? message.userName}
+                            </ChatName>
                           </Link>
                           <ChatRoleBadges
                             isBroadcaster={message.isBroadcaster}

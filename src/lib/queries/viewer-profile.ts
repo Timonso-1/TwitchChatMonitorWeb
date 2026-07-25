@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { adminViewerNotes, events, messages, moderationActions, viewers } from "@/lib/db/schema";
 
@@ -98,12 +98,21 @@ export interface ViewerProfile {
  */
 export async function getViewerProfile(
   userId: string,
-  options: { includeNotes: boolean; messageLimit?: number },
+  options: {
+    includeNotes: boolean;
+    messageLimit?: number;
+    /**
+     * Detaillisten weglassen. Sinnvoll, wenn die Reiter des Profils
+     * ihre Daten ohnehin seitenweise nachladen.
+     */
+    skipDetailLists?: boolean;
+  },
 ): Promise<ViewerProfile | null> {
   const [viewer] = await db.select().from(viewers).where(eq(viewers.userId, userId)).limit(1);
   if (!viewer) return null;
 
-  const messageLimit = options.messageLimit ?? 25;
+  const messageLimit = options.skipDetailLists ? 0 : (options.messageLimit ?? 25);
+  const detailLimit = options.skipDetailLists ? 0 : 25;
 
   const [
     channelRows,
@@ -208,7 +217,7 @@ export async function getViewerProfile(
       .from(messages)
       .where(eq(messages.userId, userId))
       .orderBy(desc(messages.receivedAt))
-      .limit(messageLimit),
+      .limit(Math.max(1, messageLimit)),
 
     db
       .select({
@@ -223,7 +232,7 @@ export async function getViewerProfile(
       .from(moderationActions)
       .where(eq(moderationActions.targetUserId, userId))
       .orderBy(desc(moderationActions.occurredAt))
-      .limit(25),
+      .limit(Math.max(1, detailLimit)),
 
     db
       .select({
@@ -241,7 +250,7 @@ export async function getViewerProfile(
       .from(events)
       .where(eq(events.userId, userId))
       .orderBy(desc(events.occurredAt))
-      .limit(25),
+      .limit(Math.max(1, detailLimit)),
   ]);
 
   const subStats = subStatsRow[0];
@@ -271,6 +280,150 @@ export async function getViewerProfile(
     moderationHistory,
     eventHistory,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Blaetterbare Detaillisten fuer die Reiter des Profils
+// ---------------------------------------------------------------------------
+
+export interface PagedResult<T> {
+  items: T[];
+  total: number;
+}
+
+export interface ViewerMessageFilters {
+  /** UUID des Channels. */
+  channelUuid?: string;
+  /** Volltextsuche im Nachrichteninhalt. */
+  content?: string;
+  /** Datum im Format YYYY-MM-DD. */
+  from?: string;
+  to?: string;
+  /** Nur Nachrichten mit Bits. */
+  withBits?: boolean;
+}
+
+function parseFilterDate(value: string | undefined, endOfDay = false): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(endOfDay ? `${value}T23:59:59.999` : `${value}T00:00:00.000`);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/** Nachrichten eines Zuschauers, seitenweise und filterbar. */
+export async function getViewerMessagesPage(
+  userId: string,
+  page: number,
+  pageSize: number,
+  filters: ViewerMessageFilters = {},
+): Promise<PagedResult<ViewerProfileMessage>> {
+  const conditions = [eq(messages.userId, userId)];
+
+  if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
+  if (filters.content) conditions.push(like(messages.content, `%${filters.content}%`));
+  if (filters.withBits) conditions.push(gt(messages.bits, 0));
+
+  const from = parseFilterDate(filters.from);
+  const to = parseFilterDate(filters.to, true);
+  if (from) conditions.push(gte(messages.receivedAt, from));
+  if (to) conditions.push(lte(messages.receivedAt, to));
+
+  const where = and(...conditions);
+
+  const [totalRow, items] = await Promise.all([
+    db.select({ value: count() }).from(messages).where(where),
+    db
+      .select({
+        id: messages.id,
+        channelName: messages.channelName,
+        content: messages.content,
+        color: messages.color,
+        bits: messages.bits,
+        isMod: messages.isMod,
+        isSubscriber: messages.isSubscriber,
+        isVip: messages.isVip,
+        isBroadcaster: messages.isBroadcaster,
+        isFirstMessage: messages.isFirstMessage,
+        isAction: messages.isAction,
+        receivedAt: messages.receivedAt,
+      })
+      .from(messages)
+      .where(where)
+      .orderBy(desc(messages.receivedAt), desc(messages.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+  ]);
+
+  return { items, total: totalRow[0]?.value ?? 0 };
+}
+
+/** Channels, in denen dieser Zuschauer geschrieben hat – für das Filter-Dropdown. */
+export async function getViewerChannelOptions(userId: string): Promise<Array<{ uuid: string; name: string }>> {
+  const rows = await db
+    .selectDistinct({ uuid: messages.channelUuid, name: messages.channelName })
+    .from(messages)
+    .where(eq(messages.userId, userId))
+    .orderBy(messages.channelName);
+
+  return rows;
+}
+
+/** Events eines Zuschauers, seitenweise. */
+export async function getViewerEventsPage(
+  userId: string,
+  page: number,
+  pageSize: number,
+): Promise<PagedResult<ViewerProfileEvent>> {
+  const [totalRow, items] = await Promise.all([
+    db.select({ value: count() }).from(events).where(eq(events.userId, userId)),
+    db
+      .select({
+        id: events.id,
+        channelName: events.channelName,
+        eventType: events.eventType,
+        subTier: events.subTier,
+        months: events.months,
+        giftCount: events.giftCount,
+        viewerCount: events.viewerCount,
+        giftedByName: events.giftedByName,
+        message: events.message,
+        occurredAt: events.occurredAt,
+      })
+      .from(events)
+      .where(eq(events.userId, userId))
+      .orderBy(desc(events.occurredAt), desc(events.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+  ]);
+
+  return { items, total: totalRow[0]?.value ?? 0 };
+}
+
+/** Moderationsaktionen gegen einen Zuschauer, seitenweise. */
+export async function getViewerModerationPage(
+  userId: string,
+  page: number,
+  pageSize: number,
+): Promise<PagedResult<ViewerProfileModeration>> {
+  const [totalRow, items] = await Promise.all([
+    db.select({ value: count() }).from(moderationActions).where(eq(moderationActions.targetUserId, userId)),
+    db
+      .select({
+        id: moderationActions.id,
+        channelName: moderationActions.channelName,
+        action: moderationActions.action,
+        durationSeconds: moderationActions.durationSeconds,
+        reason: moderationActions.reason,
+        deletedMessageContent: moderationActions.deletedMessageContent,
+        occurredAt: moderationActions.occurredAt,
+      })
+      .from(moderationActions)
+      .where(eq(moderationActions.targetUserId, userId))
+      .orderBy(desc(moderationActions.occurredAt), desc(moderationActions.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+  ]);
+
+  return { items, total: totalRow[0]?.value ?? 0 };
 }
 
 export interface ViewerActivityPoint {
@@ -355,6 +508,21 @@ export async function getViewerWeekdayDistribution(userId: string): Promise<Week
     day: WEEKDAY_LABELS[index - 1],
     messages: map.get(index) ?? 0,
   }));
+}
+
+/**
+ * Filtert eine Liste von Twitch-User-IDs auf die, die in der
+ * Chatdatenbank bekannt sind – fuer Verlinkungen aus dem Konverter.
+ */
+export async function getKnownViewerIds(userIds: string[]): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+
+  const rows = await db
+    .select({ userId: viewers.userId })
+    .from(viewers)
+    .where(inArray(viewers.userId, userIds));
+
+  return new Set(rows.map((row) => row.userId));
 }
 
 /** Zaehlt Notizen fuer mehrere Zuschauer – fuer die Markierung in der Liste. */

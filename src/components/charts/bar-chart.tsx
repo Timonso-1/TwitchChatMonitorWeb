@@ -42,6 +42,14 @@ interface BarChartProps<T extends Record<string, unknown>> {
   xLabel?: string;
   /** Breite der Kategorie-Achse bei waagerechten Balken. */
   categoryWidth?: number;
+  /**
+   * Erzwingt eine Beschriftung unter jedem Balken.
+   * Sinnvoll bei festen Kategorien wie Wochentagen oder Stunden,
+   * die Recharts sonst automatisch ausduennt.
+   */
+  showAllTicks?: boolean;
+  /** Dreht die Beschriftungen, wenn sie sonst ueberlappen. */
+  angledTicks?: boolean;
 }
 
 export function BarChart<T extends Record<string, unknown>>({
@@ -57,19 +65,24 @@ export function BarChart<T extends Record<string, unknown>>({
   colorByIndex,
   xLabel,
   categoryWidth = 120,
+  showAllTicks,
+  angledTicks,
 }: BarChartProps<T>) {
   const mounted = useMounted();
 
   if (data.length === 0) return <ChartEmpty height={height} message={emptyMessage} />;
   if (!mounted) return <div style={{ height }} aria-hidden />;
 
+  // Gedrehte Beschriftungen brauchen unten mehr Platz.
+  const bottomMargin = angledTicks ? 18 : 0;
+
   return (
     <div>
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height={height + bottomMargin}>
         <RechartsBarChart
           data={data}
           layout={horizontal ? "vertical" : "horizontal"}
-          margin={{ top: 8, right: 8, bottom: 0, left: horizontal ? 8 : -16 }}
+          margin={{ top: 8, right: 8, bottom: bottomMargin, left: horizontal ? 8 : -16 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={horizontal} horizontal={!horizontal} />
 
@@ -82,6 +95,7 @@ export function BarChart<T extends Record<string, unknown>>({
                 tickLine={false}
                 axisLine={false}
                 width={categoryWidth}
+                interval={showAllTicks ? 0 : "preserveStartEnd"}
                 tickFormatter={(value) => applyAxisFormat(value, xFormat)}
               />
             </>
@@ -92,7 +106,12 @@ export function BarChart<T extends Record<string, unknown>>({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                minTickGap={8}
+                // interval 0 erzwingt jede Beschriftung; minTickGap wuerde sie sonst ausduennen.
+                interval={showAllTicks ? 0 : "preserveStartEnd"}
+                minTickGap={showAllTicks ? 0 : 8}
+                angle={angledTicks ? -45 : undefined}
+                textAnchor={angledTicks ? "end" : "middle"}
+                height={angledTicks ? 48 : undefined}
                 tickFormatter={(value) => applyAxisFormat(value, xFormat)}
               />
               <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={(v) => formatNumber(v)} />

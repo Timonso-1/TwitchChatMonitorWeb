@@ -63,9 +63,18 @@ export function formatCompact(value: number | string | null | undefined): string
   return new Intl.NumberFormat("de-DE", { notation: "compact", maximumFractionDigits: 1 }).format(num);
 }
 
-/** Prozentuale Veraenderung zweier Werte. Gibt null zurueck, wenn kein Vergleich moeglich ist. */
-export function percentChange(current: number, previous: number): number | null {
-  if (previous === 0) return current === 0 ? 0 : null;
+/**
+ * Mindestgroesse der Vergleichsbasis. Darunter sind Prozentwerte irrefuehrend:
+ * von 2 auf 20 sind zwar +900 %, sagen aber nichts aus.
+ */
+export const MIN_TREND_BASE = 10;
+
+/**
+ * Prozentuale Veraenderung zweier Werte.
+ * Gibt null zurueck, wenn die Basis zu klein fuer eine sinnvolle Aussage ist.
+ */
+export function percentChange(current: number, previous: number, minBase = MIN_TREND_BASE): number | null {
+  if (previous < minBase) return null;
   return Math.round(((current - previous) / previous) * 100);
 }
 

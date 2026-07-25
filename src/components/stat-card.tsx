@@ -28,11 +28,18 @@ const ACCENT_CLASSES: Record<Accent, string> = {
   info: "text-[var(--color-info)] bg-[color-mix(in_srgb,var(--color-info)_14%,transparent)]",
 };
 
+/** Ab diesem Betrag wird der Wert gedeckelt statt ausgeschrieben. */
+const TREND_CAP = 999;
+
 /** Kleines Abzeichen mit Auf- oder Abwaertstrend. */
 function TrendBadge({ value, label }: { value: number; label?: string }) {
   const rising = value > 0;
   const flat = value === 0;
   const Icon = flat ? Minus : rising ? TrendingUp : TrendingDown;
+
+  // Extremwerte entstehen bei kleiner Vergleichsbasis – lieber deckeln als irrefuehren.
+  const capped = Math.abs(value) > TREND_CAP;
+  const text = capped ? `${value > 0 ? ">+" : "<−"}${TREND_CAP} %` : `${value > 0 ? "+" : ""}${value} %`;
 
   return (
     <span
@@ -45,8 +52,7 @@ function TrendBadge({ value, label }: { value: number; label?: string }) {
       )}
     >
       <Icon className="size-3" />
-      {value > 0 ? "+" : ""}
-      {value} %
+      {text}
     </span>
   );
 }

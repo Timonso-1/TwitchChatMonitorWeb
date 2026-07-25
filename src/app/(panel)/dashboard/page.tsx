@@ -4,8 +4,11 @@ import { MessageSquare, ShieldAlert, Users, Zap } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { RangeSelector } from "@/components/range-selector";
-import { AreaChart, BarChart, DonutChart } from "@/components/charts";
+import { AreaChart, DonutChart } from "@/components/charts";
+import { RankingList } from "@/components/ranking-list";
 import { EventBadge, ModerationBadge, SubTierBadge } from "@/components/twitch-badges";
+import { ViewerAvatar } from "@/components/viewer-avatar";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth/guard";
@@ -22,6 +25,7 @@ import {
   normalizeRange,
 } from "@/lib/queries/dashboard";
 import { eventDetailText, eventTypeLabel, formatDuration } from "@/lib/twitch";
+import { getViewerAvatars } from "@/lib/twitch-api";
 import { formatNumber, formatRelative } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -53,6 +57,8 @@ export default async function DashboardPage({
       canSeeEvents ? getRecentEvents(6) : Promise.resolve([]),
       canSeeModeration ? getRecentModeration(6) : Promise.resolve([]),
     ]);
+
+  const chatterAvatars = await getViewerAvatars(topChatters.map((chatter) => chatter.userId));
 
   const hourly = range <= 1;
 
@@ -130,16 +136,19 @@ export default async function DashboardPage({
           <Card>
             <CardHeader>
               <CardTitle>Aktivste Channels</CardTitle>
-              <CardDescription>Nachrichten je Channel im gewählten Zeitraum.</CardDescription>
+              <CardDescription>Nachrichten je Channel in den letzten {rangeLabel.toLowerCase()}.</CardDescription>
             </CardHeader>
             <CardContent>
-              <BarChart
-                data={topChannels}
-                xKey="name"
-                series={[{ key: "messages", label: "Nachrichten", color: "chart-2" }]}
-                horizontal
-                height={Math.max(180, topChannels.length * 34)}
-                xLabel="Nachrichten im gewählten Zeitraum"
+              <RankingList
+                entries={topChannels.map((channel) => ({
+                  id: channel.uuid,
+                  label: channel.name,
+                  value: channel.messages,
+                  href: `/channels/${channel.uuid}`,
+                  badge: channel.active ? undefined : <Badge variant="muted">Inaktiv</Badge>,
+                }))}
+                unit="Nachrichten"
+                accent="brand"
                 emptyMessage="Keine Channel-Aktivität im Zeitraum."
               />
             </CardContent>
@@ -171,19 +180,34 @@ export default async function DashboardPage({
         <Card>
           <CardHeader>
             <CardTitle>Aktivste Chatter</CardTitle>
-            <CardDescription>Die gesprächigsten Zuschauer im gewählten Zeitraum.</CardDescription>
+            <CardDescription>
+              Die gesprächigsten Zuschauer in den letzten {rangeLabel.toLowerCase()}.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <BarChart
-              data={topChatters.map((chatter) => ({
-                name: chatter.displayName ?? chatter.userName,
-                messages: chatter.messages,
-              }))}
-              xKey="name"
-              series={[{ key: "messages", label: "Nachrichten", color: "chart-3" }]}
-              horizontal
-              height={Math.max(180, topChatters.length * 34)}
-              xLabel="Nachrichten im gewählten Zeitraum"
+            <RankingList
+              entries={topChatters.map((chatter) => {
+                const name = chatter.displayName ?? chatter.userName;
+
+                return {
+                  id: chatter.userId,
+                  label: name,
+                  sublabel: chatter.displayName && chatter.displayName !== chatter.userName
+                    ? `@${chatter.userName}`
+                    : undefined,
+                  value: chatter.messages,
+                  href: `/viewers/${chatter.userId}`,
+                  leading: (
+                    <ViewerAvatar
+                      name={name}
+                      imageUrl={chatterAvatars.get(chatter.userId)?.profileImageUrl}
+                      size="sm"
+                    />
+                  ),
+                };
+              })}
+              unit="Nachrichten"
+              accent="success"
             />
           </CardContent>
         </Card>
@@ -200,6 +224,7 @@ export default async function DashboardPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Typ</TableHead>
+                    <TableHead>Channel</TableHead>
                     <TableHead>Nutzer</TableHead>
                     <TableHead>Details</TableHead>
                     <TableHead className="text-right">Zeit</TableHead>
@@ -207,12 +232,15 @@ export default async function DashboardPage({
                 </TableHeader>
                 <TableBody>
                   {recentEvents.length === 0 ? (
-                    <TableEmpty colSpan={4}>Keine Events vorhanden.</TableEmpty>
+                    <TableEmpty colSpan={5}>Keine Events vorhanden.</TableEmpty>
                   ) : (
                     recentEvents.map((event) => (
                       <TableRow key={event.id}>
                         <TableCell>
                           <EventBadge type={event.eventType} />
+                        </TableCell>
+                        <TableCell className="max-w-24 truncate text-xs text-[var(--color-muted-foreground)]">
+                          {event.channelName}
                         </TableCell>
                         <TableCell className="max-w-28 truncate">{event.userName ?? "—"}</TableCell>
                         <TableCell className="text-xs">
@@ -250,6 +278,7 @@ export default async function DashboardPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Aktion</TableHead>
+                    <TableHead>Channel</TableHead>
                     <TableHead>Ziel</TableHead>
                     <TableHead>Dauer</TableHead>
                     <TableHead className="text-right">Zeit</TableHead>
@@ -257,12 +286,15 @@ export default async function DashboardPage({
                 </TableHeader>
                 <TableBody>
                   {recentModeration.length === 0 ? (
-                    <TableEmpty colSpan={4}>Keine Moderationsaktionen.</TableEmpty>
+                    <TableEmpty colSpan={5}>Keine Moderationsaktionen.</TableEmpty>
                   ) : (
                     recentModeration.map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell>
                           <ModerationBadge action={entry.action} />
+                        </TableCell>
+                        <TableCell className="max-w-24 truncate text-xs text-[var(--color-muted-foreground)]">
+                          {entry.channelName}
                         </TableCell>
                         <TableCell className="max-w-28 truncate">
                           {entry.targetUserId && canSeeViewers ? (

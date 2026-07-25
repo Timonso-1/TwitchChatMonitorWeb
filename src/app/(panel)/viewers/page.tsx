@@ -7,6 +7,7 @@ import { FilterBar, FilterField } from "@/components/filter-bar";
 import { PageHeader } from "@/components/page-header";
 import { RangeSelector } from "@/components/range-selector";
 import { StatCard } from "@/components/stat-card";
+import { TwitchProfileLink } from "@/components/twitch-profile-link";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,7 +73,9 @@ export default async function ViewersPage({
     getViewerAvatars(userIds),
   ]);
 
-  const growth = percentChange(trend.current, trend.previous);
+  // Ohne vollstaendige Vorperiode waere ein Prozentwert irrefuehrend –
+  // er wuerde fehlende Aufzeichnung als Wachstum ausweisen.
+  const growth = trend.comparable ? percentChange(trend.current, trend.previous) : null;
 
   // Filter im Zeitraum-Link erhalten, damit die Tabelle nicht zurückspringt.
   const filterParams = {
@@ -114,6 +117,15 @@ export default async function ViewersPage({
           <StatCard
             label={`Neue Zuschauer (${label})`}
             value={trend.current}
+            hint={
+              trend.comparable
+                ? growth === null
+                  ? "Zu wenig Vergleichsdaten für einen Trend"
+                  : undefined
+                : trend.earliestRecord
+                  ? `Aufzeichnung erst seit ${formatDateTime(trend.earliestRecord)}`
+                  : undefined
+            }
             icon={UserPlus}
             accent="brand"
             size="large"
@@ -188,6 +200,7 @@ export default async function ViewersPage({
                               <Link href={`/viewers/${viewer.userId}`} className="truncate font-medium hover:underline">
                                 {name}
                               </Link>
+                              <TwitchProfileLink login={viewer.userName} size="sm" />
                               {notes > 0 && (
                                 <Badge variant="info" title={`${notes} Notiz(en)`}>
                                   <StickyNote className="size-3" />
@@ -226,6 +239,7 @@ export default async function ViewersPage({
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
+            itemLabel="Zuschauern"
           />
         </CardContent>
       </Card>

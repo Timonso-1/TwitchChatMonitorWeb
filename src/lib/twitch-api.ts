@@ -88,17 +88,21 @@ interface HelixUser {
   created_at: string;
 }
 
-async function fetchUsersFromApi(userIds: string[]): Promise<HelixUser[]> {
+/**
+ * Fragt Nutzer bei Twitch ab.
+ * `key` bestimmt, ob nach User-ID ("id") oder Login-Name ("login") gesucht wird.
+ */
+async function fetchUsersFromApi(values: string[], key: "id" | "login" = "id"): Promise<HelixUser[]> {
   const token = await getAppAccessToken();
   const clientId = process.env.TWITCH_CLIENT_ID;
   if (!token || !clientId) return [];
 
   const results: HelixUser[] = [];
 
-  for (let index = 0; index < userIds.length; index += MAX_IDS_PER_REQUEST) {
-    const chunk = userIds.slice(index, index + MAX_IDS_PER_REQUEST);
+  for (let index = 0; index < values.length; index += MAX_IDS_PER_REQUEST) {
+    const chunk = values.slice(index, index + MAX_IDS_PER_REQUEST);
     const params = new URLSearchParams();
-    for (const id of chunk) params.append("id", id);
+    for (const value of chunk) params.append(key, value);
 
     try {
       const response = await fetch(`${HELIX_USERS_URL}?${params.toString()}`, {
@@ -122,6 +126,81 @@ async function fetchUsersFromApi(userIds: string[]): Promise<HelixUser[]> {
   }
 
   return results;
+}
+
+export interface TwitchLookupResult {
+  /** Die Eingabe, zu der dieser Treffer gehört. */
+  query: string;
+  found: boolean;
+  userId?: string;
+  login?: string;
+  displayName?: string;
+  profileImageUrl?: string;
+  description?: string;
+  broadcasterType?: string;
+  createdAt?: Date;
+}
+
+/** Richtung der Umwandlung. */
+export type LookupDirection = "name-to-id" | "id-to-name";
+
+/** Entfernt Twitch-URLs und @-Praefixe, damit nur der Login uebrig bleibt. */
+export function normalizeTwitchLogin(value: string): string {
+  return value
+    .trim()
+    .replace(/^https?:\/\/(www\.)?twitch\.tv\//i, "")
+    .replace(/\/.*$/, "")
+    .replace(/^@/, "")
+    .toLowerCase();
+}
+
+/**
+ * Schlägt Twitch-Accounts nach, in der angegebenen Richtung.
+ * Die Richtung ist bewusst explizit statt geraten – ein Login darf
+ * schliesslich auch nur aus Ziffern bestehen.
+ */
+export async function lookupTwitchUsers(
+  queries: string[],
+  direction: LookupDirection,
+): Promise<TwitchLookupResult[]> {
+  const cleaned = [...new Set(queries.map((entry) => entry.trim()).filter(Boolean))].slice(0, MAX_IDS_PER_REQUEST);
+  if (cleaned.length === 0) return [];
+
+  if (!isTwitchApiConfigured()) {
+    return cleaned.map((query) => ({ query, found: false }));
+  }
+
+  const byId = direction === "id-to-name";
+
+  // Bei IDs nur Ziffern zulassen, bei Namen URLs und @ entfernen.
+  const values = cleaned.map((entry) => (byId ? entry.replace(/\D/g, "") : normalizeTwitchLogin(entry)));
+
+  const found = await fetchUsersFromApi(
+    values.filter(Boolean),
+    byId ? "id" : "login",
+  );
+
+  return cleaned.map((query, index) => {
+    const normalized = values[index];
+
+    const match = found.find((user) =>
+      byId ? user.id === normalized : user.login.toLowerCase() === normalized,
+    );
+
+    if (!match) return { query, found: false };
+
+    return {
+      query,
+      found: true,
+      userId: match.id,
+      login: match.login,
+      displayName: match.display_name,
+      profileImageUrl: match.profile_image_url,
+      description: match.description || undefined,
+      broadcasterType: match.broadcaster_type || undefined,
+      createdAt: match.created_at ? new Date(match.created_at) : undefined,
+    };
+  });
 }
 
 export interface ViewerAvatar {

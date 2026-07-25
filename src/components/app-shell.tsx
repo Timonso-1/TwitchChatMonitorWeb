@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowLeftRight,
+  ChevronDown,
   ChevronsUpDown,
   KeyRound,
   LayoutDashboard,
@@ -49,6 +51,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   UserCog,
   KeyRound,
   ScrollText,
+  ArrowLeftRight,
 };
 
 export interface AppShellUser {
@@ -97,14 +100,43 @@ function buildCrumbs(pathname: string, sections: typeof NAVIGATION): Crumb[] {
   return [];
 }
 
+const COLLAPSED_STORAGE_KEY = "tp_sidebar_collapsed";
+
 export function AppShell({ user, theme, logoutAction, children }: AppShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [sidebarVisible, setSidebarVisible] = React.useState(true);
+  const [collapsed, setCollapsed] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  // Eingeklappte Gruppen ueber Seitenwechsel hinweg merken.
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      if (stored) setCollapsed(JSON.parse(stored) as string[]);
+    } catch {
+      // Kein Zugriff auf localStorage – dann bleiben alle Gruppen offen.
+    }
+  }, []);
+
+  function toggleSection(label: string) {
+    setCollapsed((previous) => {
+      const next = previous.includes(label)
+        ? previous.filter((entry) => entry !== label)
+        : [...previous, label];
+
+      try {
+        window.localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Speichern ist optional.
+      }
+
+      return next;
+    });
+  }
 
   const sections = React.useMemo(
     () =>
@@ -143,34 +175,55 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   );
 
   const navigation = (
-    <nav className="flex-1 space-y-5 overflow-y-auto scrollbar-thin px-2.5 py-4">
-      {sections.map((section) => (
-        <div key={section.label} className="space-y-0.5">
-          <p className="px-2.5 pb-1.5 text-xs font-medium text-[var(--color-subtle)]">{section.label}</p>
+    <nav className="space-y-1 overflow-y-auto scrollbar-thin px-2.5 py-3">
+      {sections.map((section) => {
+        const isCollapsed = collapsed.includes(section.label);
+        // Eine Gruppe mit aktivem Eintrag bleibt sichtbar, auch wenn sie eingeklappt ist.
+        const hasActiveItem = section.items.some((item) => isActive(pathname, item));
+        const showItems = !isCollapsed || hasActiveItem;
 
-          {section.items.map((item) => {
-            const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
-            const active = isActive(pathname, item);
+        return (
+          <div key={section.label}>
+            <button
+              type="button"
+              onClick={() => toggleSection(section.label)}
+              aria-expanded={showItems}
+              className="flex w-full items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-[var(--color-subtle)] transition-colors hover:text-[var(--color-muted-foreground)]"
+            >
+              <ChevronDown
+                className={cn("size-3 transition-transform duration-150", !showItems && "-rotate-90")}
+              />
+              {section.label}
+            </button>
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors duration-100",
-                  active
-                    ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
-                    : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-surface)] hover:text-[var(--color-foreground)]",
-                )}
-              >
-                <Icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-70")} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+            {showItems && (
+              <div className="space-y-0.5 pt-0.5">
+                {section.items.map((item) => {
+                  const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
+                  const active = isActive(pathname, item);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors duration-100",
+                        active
+                          ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
+                          : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-surface)] hover:text-[var(--color-foreground)]",
+                      )}
+                    >
+                      <Icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-70")} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 
@@ -250,9 +303,13 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   const sidebarInner = (
     <>
       {brand}
+
+      {/* Nimmt nur die noetige Hoehe ein; der Rest schiebt den Account-Block nach unten. */}
       {navigation}
+      <div className="flex-1" />
+
       {!user.totpEnabled && (
-        <div className="px-2.5 pb-1">
+        <div className="px-2.5 pb-2">
           <Link
             href="/setup-2fa"
             className="flex items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--color-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-2.5 py-2 text-xs text-[var(--color-foreground)]"
@@ -262,6 +319,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
           </Link>
         </div>
       )}
+
       {accountBlock}
     </>
   );

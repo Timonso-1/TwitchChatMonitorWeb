@@ -71,6 +71,7 @@ export default async function ModerationPage({
         currentValue={trend.current}
         previousValue={trend.previous}
         totalValue={trend.total}
+        comparable={trend.comparable}
         currentLabel={`Aktionen (${label})`}
         totalLabel="Aktionen insgesamt"
         icon={ShieldAlert}

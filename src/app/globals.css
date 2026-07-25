@@ -190,6 +190,19 @@
   }
 }
 
+/*
+ * Chatfarben: Twitch erlaubt sehr helle Werte, die auf weissem Grund
+ * verschwinden. Deshalb liefert der Server beide Varianten mit,
+ * und das aktive Theme entscheidet, welche gilt.
+ */
+.chat-name {
+  color: var(--chat-color-dark);
+}
+
+.light .chat-name {
+  color: var(--chat-color-light);
+}
+
 /* Recharts an das Farbschema anpassen */
 .recharts-cartesian-grid line {
   stroke: var(--color-chart-grid);

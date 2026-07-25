@@ -25,6 +25,8 @@ interface ListTrendHeaderProps {
   currentValue: number;
   previousValue: number;
   totalValue: number;
+  /** false, wenn die Vorperiode vor dem ersten Datensatz liegt. */
+  comparable?: boolean;
   currentLabel: string;
   totalLabel: string;
   icon: LucideIcon;
@@ -50,13 +52,15 @@ export function ListTrendHeader({
   currentValue,
   previousValue,
   totalValue,
+  comparable = true,
   currentLabel,
   totalLabel,
   icon: Icon,
   totalIcon: TotalIcon,
   accent = "brand",
 }: ListTrendHeaderProps) {
-  const trend = percentChange(currentValue, previousValue);
+  // Ohne vollstaendige Vorperiode waere jeder Prozentwert irrefuehrend.
+  const trend = comparable ? percentChange(currentValue, previousValue) : null;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -84,6 +88,7 @@ export function ListTrendHeader({
         <StatCard
           label={currentLabel}
           value={currentValue}
+          hint={trend === null && comparable ? "Zu wenig Vergleichsdaten für einen Trend" : undefined}
           icon={Icon}
           accent={accent}
           size="large"

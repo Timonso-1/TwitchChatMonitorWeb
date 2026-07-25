@@ -74,14 +74,31 @@ export interface TrendSummary {
   previous: number;
   /** Gesamtbestand über alle Zeiten. */
   total: number;
+  /**
+   * false, wenn die Vergleichsperiode ganz oder teilweise vor dem ersten
+   * Datensatz liegt. Ein Prozentwert waere dann irrefuehrend, weil er
+   * fehlende Aufzeichnung mit echtem Wachstum verwechselt.
+   */
+  comparable: boolean;
+  /** Aeltester bekannter Datensatz – erklaert, warum kein Vergleich moeglich ist. */
+  earliestRecord: Date | null;
   points: DailyPoint[];
+}
+
+/**
+ * Der Vergleich ist nur sinnvoll, wenn die Vorperiode vollstaendig
+ * innerhalb des aufgezeichneten Zeitraums liegt.
+ */
+function isComparable(earliest: Date | null, previousStart: Date): boolean {
+  if (!earliest) return false;
+  return earliest.getTime() <= previousStart.getTime();
 }
 
 export async function getViewerTrend(days: number): Promise<TrendSummary> {
   const start = startOfDayAgo(days);
   const previousStart = startOfDayAgo(days * 2);
 
-  const [rows, currentRow, previousRow, totalRow, baselineRow] = await Promise.all([
+  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
     db
       .select({
         day: sql<string>`DATE_FORMAT(${viewers.firstSeenAt}, '%Y-%m-%d')`,
@@ -97,12 +114,17 @@ export async function getViewerTrend(days: number): Promise<TrendSummary> {
       .where(and(gte(viewers.firstSeenAt, previousStart), lt(viewers.firstSeenAt, start))),
     db.select({ value: count() }).from(viewers),
     db.select({ value: count() }).from(viewers).where(lt(viewers.firstSeenAt, start)),
+    db.select({ value: sql<Date | null>`MIN(${viewers.firstSeenAt})` }).from(viewers),
   ]);
+
+  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
 
   return {
     current: currentRow[0]?.value ?? 0,
     previous: previousRow[0]?.value ?? 0,
     total: totalRow[0]?.value ?? 0,
+    comparable: isComparable(earliest, previousStart),
+    earliestRecord: earliest,
     points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
   };
 }
@@ -111,7 +133,7 @@ export async function getMessageTrend(days: number): Promise<TrendSummary> {
   const start = startOfDayAgo(days);
   const previousStart = startOfDayAgo(days * 2);
 
-  const [rows, currentRow, previousRow, totalRow, baselineRow] = await Promise.all([
+  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
     db
       .select({
         day: sql<string>`DATE_FORMAT(${messages.receivedAt}, '%Y-%m-%d')`,
@@ -127,12 +149,17 @@ export async function getMessageTrend(days: number): Promise<TrendSummary> {
       .where(and(gte(messages.receivedAt, previousStart), lt(messages.receivedAt, start))),
     db.select({ value: count() }).from(messages),
     db.select({ value: count() }).from(messages).where(lt(messages.receivedAt, start)),
+    db.select({ value: sql<Date | null>`MIN(${messages.receivedAt})` }).from(messages),
   ]);
+
+  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
 
   return {
     current: currentRow[0]?.value ?? 0,
     previous: previousRow[0]?.value ?? 0,
     total: totalRow[0]?.value ?? 0,
+    comparable: isComparable(earliest, previousStart),
+    earliestRecord: earliest,
     points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
   };
 }
@@ -141,7 +168,7 @@ export async function getEventTrend(days: number): Promise<TrendSummary> {
   const start = startOfDayAgo(days);
   const previousStart = startOfDayAgo(days * 2);
 
-  const [rows, currentRow, previousRow, totalRow, baselineRow] = await Promise.all([
+  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
     db
       .select({
         day: sql<string>`DATE_FORMAT(${events.occurredAt}, '%Y-%m-%d')`,
@@ -157,12 +184,17 @@ export async function getEventTrend(days: number): Promise<TrendSummary> {
       .where(and(gte(events.occurredAt, previousStart), lt(events.occurredAt, start))),
     db.select({ value: count() }).from(events),
     db.select({ value: count() }).from(events).where(lt(events.occurredAt, start)),
+    db.select({ value: sql<Date | null>`MIN(${events.occurredAt})` }).from(events),
   ]);
+
+  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
 
   return {
     current: currentRow[0]?.value ?? 0,
     previous: previousRow[0]?.value ?? 0,
     total: totalRow[0]?.value ?? 0,
+    comparable: isComparable(earliest, previousStart),
+    earliestRecord: earliest,
     points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
   };
 }
@@ -171,7 +203,7 @@ export async function getModerationTrend(days: number): Promise<TrendSummary> {
   const start = startOfDayAgo(days);
   const previousStart = startOfDayAgo(days * 2);
 
-  const [rows, currentRow, previousRow, totalRow, baselineRow] = await Promise.all([
+  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
     db
       .select({
         day: sql<string>`DATE_FORMAT(${moderationActions.occurredAt}, '%Y-%m-%d')`,
@@ -187,12 +219,17 @@ export async function getModerationTrend(days: number): Promise<TrendSummary> {
       .where(and(gte(moderationActions.occurredAt, previousStart), lt(moderationActions.occurredAt, start))),
     db.select({ value: count() }).from(moderationActions),
     db.select({ value: count() }).from(moderationActions).where(lt(moderationActions.occurredAt, start)),
+    db.select({ value: sql<Date | null>`MIN(${moderationActions.occurredAt})` }).from(moderationActions),
   ]);
+
+  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
 
   return {
     current: currentRow[0]?.value ?? 0,
     previous: previousRow[0]?.value ?? 0,
     total: totalRow[0]?.value ?? 0,
+    comparable: isComparable(earliest, previousStart),
+    earliestRecord: earliest,
     points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
   };
 }

@@ -158,6 +158,103 @@ export function eventDetailText(event: {
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
+// ---------------------------------------------------------------------------
+// Chatfarben
+// ---------------------------------------------------------------------------
+
+interface Rgb {
+  r: number;
+  g: number;
+  b: number;
+}
+
+function parseHex(color: string): Rgb | null {
+  const value = color.trim().replace(/^#/, "");
+
+  const expanded =
+    value.length === 3
+      ? value
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : value;
+
+  if (!/^[0-9a-fA-F]{6}$/.test(expanded)) return null;
+
+  return {
+    r: parseInt(expanded.slice(0, 2), 16),
+    g: parseInt(expanded.slice(2, 4), 16),
+    b: parseInt(expanded.slice(4, 6), 16),
+  };
+}
+
+function toHex({ r, g, b }: Rgb): string {
+  const part = (value: number) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, "0");
+  return `#${part(r)}${part(g)}${part(b)}`;
+}
+
+/** Relative Luminanz nach WCAG – 0 = schwarz, 1 = weiss. */
+export function relativeLuminance(color: string): number | null {
+  const rgb = parseHex(color);
+  if (!rgb) return null;
+
+  const channel = (value: number) => {
+    const scaled = value / 255;
+    return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+  };
+
+  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
+}
+
+/**
+ * Dunkelt eine Farbe so weit ab, dass sie auf hellem Hintergrund lesbar bleibt.
+ * Twitch erlaubt sehr helle Chatfarben, die auf Weiss praktisch verschwinden.
+ */
+export function darkenForLightBackground(color: string, targetLuminance = 0.22): string | null {
+  const rgb = parseHex(color);
+  if (!rgb) return null;
+
+  const luminance = relativeLuminance(color);
+  if (luminance === null) return null;
+  if (luminance <= targetLuminance) return toHex(rgb);
+
+  // Schrittweise abdunkeln, bis die Ziel-Luminanz erreicht ist.
+  let factor = 1;
+  let current = { ...rgb };
+
+  for (let step = 0; step < 24; step++) {
+    factor -= 0.05;
+    current = { r: rgb.r * factor, g: rgb.g * factor, b: rgb.b * factor };
+
+    const next = relativeLuminance(toHex(current));
+    if (next !== null && next <= targetLuminance) break;
+  }
+
+  return toHex(current);
+}
+
+export interface ChatColorPair {
+  /** Originalfarbe – gut lesbar auf dunklem Hintergrund. */
+  dark: string;
+  /** Abgedunkelte Variante fuer den hellen Modus. */
+  light: string;
+}
+
+/**
+ * Liefert beide Varianten einer Chatfarbe.
+ * Die Auswahl passiert per CSS, weil der Server das aktive Theme
+ * bei der Einstellung "System" nicht kennt.
+ */
+export function chatColorPair(color: string | null | undefined): ChatColorPair | null {
+  if (!color) return null;
+
+  const rgb = parseHex(color);
+  if (!rgb) return null;
+
+  const dark = toHex(rgb);
+  return { dark, light: darkenForLightBackground(dark) ?? dark };
+}
+
 /** Parst das `badges`-Feld ("moderator/1,subscriber/12") in einzelne Abzeichen. */
 export function parseBadges(raw: string | null | undefined): Array<{ name: string; version: string }> {
   if (!raw) return [];
