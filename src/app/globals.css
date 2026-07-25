@@ -1,0 +1,211 @@
+@import "tailwindcss";
+
+/*
+ * Farben liegen als CSS-Variablen auf :root bzw. .light.
+ * Tailwind referenziert sie ueber @theme, damit Klassen wie
+ * `bg-[var(--color-card)]` in beiden Themes funktionieren.
+ */
+
+:root,
+.dark {
+  --color-background: hsl(0 0% 4%);
+  --color-surface: hsl(0 0% 6%);
+  --color-card: hsl(0 0% 7%);
+  --color-card-foreground: hsl(0 0% 96%);
+  --color-elevated: hsl(0 0% 9%);
+  --color-popover: hsl(0 0% 8%);
+  --color-popover-foreground: hsl(0 0% 96%);
+
+  --color-foreground: hsl(0 0% 96%);
+  --color-muted: hsl(0 0% 11%);
+  --color-muted-foreground: hsl(0 0% 55%);
+  --color-subtle: hsl(0 0% 40%);
+
+  --color-primary: hsl(0 0% 96%);
+  --color-primary-foreground: hsl(0 0% 6%);
+  --color-primary-hover: hsl(0 0% 86%);
+  --color-secondary: hsl(0 0% 13%);
+  --color-secondary-foreground: hsl(0 0% 90%);
+  --color-accent: hsl(0 0% 13%);
+  --color-accent-foreground: hsl(0 0% 96%);
+
+  --color-destructive: hsl(4 72% 58%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-warning: hsl(32 88% 55%);
+  --color-success: hsl(142 60% 48%);
+  --color-info: hsl(210 80% 60%);
+  --color-brand: hsl(265 80% 68%);
+
+  --color-border: hsl(0 0% 14%);
+  --color-border-strong: hsl(0 0% 20%);
+  --color-input: hsl(0 0% 16%);
+  --color-ring: hsl(0 0% 45%);
+
+  /* Diagramme */
+  --color-chart-1: hsl(0 0% 88%);
+  --color-chart-2: hsl(265 80% 68%);
+  --color-chart-3: hsl(142 60% 48%);
+  --color-chart-4: hsl(32 88% 55%);
+  --color-chart-5: hsl(210 80% 60%);
+  --color-chart-grid: hsl(0 0% 16%);
+
+  --shadow-panel: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+  --shadow-overlay: 0 16px 48px -12px hsl(0 0% 0% / 0.7);
+  --inset-highlight: inset 0 1px 0 0 hsl(0 0% 100% / 0.03);
+
+  color-scheme: dark;
+}
+
+.light {
+  --color-background: hsl(0 0% 99%);
+  --color-surface: hsl(240 12% 97%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(240 10% 12%);
+  --color-elevated: hsl(0 0% 100%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(240 10% 12%);
+
+  --color-foreground: hsl(240 10% 12%);
+  --color-muted: hsl(240 12% 95%);
+  --color-muted-foreground: hsl(240 5% 42%);
+  --color-subtle: hsl(240 5% 55%);
+
+  --color-primary: hsl(240 10% 12%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-primary-hover: hsl(240 10% 24%);
+  --color-secondary: hsl(240 12% 94%);
+  --color-secondary-foreground: hsl(240 10% 20%);
+  --color-accent: hsl(240 12% 93%);
+  --color-accent-foreground: hsl(240 10% 12%);
+
+  --color-destructive: hsl(4 70% 48%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-warning: hsl(28 85% 42%);
+  --color-success: hsl(142 62% 32%);
+  --color-info: hsl(212 80% 45%);
+  --color-brand: hsl(265 70% 52%);
+
+  --color-border: hsl(240 10% 90%);
+  --color-border-strong: hsl(240 10% 82%);
+  --color-input: hsl(240 10% 86%);
+  --color-ring: hsl(240 8% 60%);
+
+  --color-chart-1: hsl(240 10% 25%);
+  --color-chart-2: hsl(265 70% 52%);
+  --color-chart-3: hsl(142 62% 32%);
+  --color-chart-4: hsl(28 85% 42%);
+  --color-chart-5: hsl(212 80% 45%);
+  --color-chart-grid: hsl(240 10% 90%);
+
+  --shadow-panel: 0 1px 2px 0 hsl(240 10% 20% / 0.06);
+  --shadow-overlay: 0 16px 48px -12px hsl(240 10% 20% / 0.18);
+  --inset-highlight: inset 0 1px 0 0 hsl(0 0% 100% / 0.6);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-popover: var(--color-popover);
+  --color-foreground: var(--color-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-subtle: var(--color-subtle);
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-destructive: var(--color-destructive);
+  --color-warning: var(--color-warning);
+  --color-success: var(--color-success);
+  --color-info: var(--color-info);
+  --color-brand: var(--color-brand);
+  --color-border: var(--color-border);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
+
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.35rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-brand) 25%, transparent);
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 999px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .ring-inset-subtle {
+    box-shadow: var(--inset-highlight);
+  }
+
+  .shadow-panel {
+    box-shadow: var(--shadow-panel);
+  }
+
+  .shadow-overlay {
+    box-shadow: var(--shadow-overlay);
+  }
+}
+
+/* Recharts an das Farbschema anpassen */
+.recharts-cartesian-grid line {
+  stroke: var(--color-chart-grid);
+}
+
+.recharts-cartesian-axis-tick text {
+  fill: var(--color-muted-foreground);
+  font-size: 11px;
+}
+
+.recharts-curve.recharts-tooltip-cursor,
+.recharts-rectangle.recharts-tooltip-cursor {
+  fill: color-mix(in srgb, var(--color-foreground) 6%, transparent);
+  stroke: var(--color-border-strong);
+}
+
+.recharts-surface {
+  overflow: visible;
+}

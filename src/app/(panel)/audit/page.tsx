@@ -1,0 +1,135 @@
+import type { Metadata } from "next";
+import { PageHeader } from "@/components/page-header";
+import { FilterBar, FilterField } from "@/components/filter-bar";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import { Select } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requirePermission } from "@/lib/auth/guard";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { auditActionLabel } from "@/lib/audit";
+import { listAuditActions, listAuditEntries } from "@/lib/queries/accounts";
+import { formatDateTime, parsePositiveInt, parseSearchParam, truncate } from "@/lib/utils";
+
+export const metadata: Metadata = { title: "Audit-Log" };
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
+
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await requirePermission(PERMISSIONS.AUDIT_VIEW);
+  const params = await searchParams;
+
+  const actor = parseSearchParam(params.actor);
+  const action = parseSearchParam(params.action);
+  const outcomeParam = parseSearchParam(params.outcome);
+  const outcome = outcomeParam === "success" || outcomeParam === "failure" ? outcomeParam : "all";
+  const page = parsePositiveInt(params.page, 1);
+
+  const [actions, { items, total }] = await Promise.all([
+    listAuditActions(),
+    listAuditEntries({ actor, action, outcome, page, pageSize: PAGE_SIZE }),
+  ]);
+
+  const activeFilters = { actor, action, outcome: outcome === "all" ? undefined : outcome };
+
+  return (
+    <>
+      <PageHeader
+        title="Audit-Log"
+        description="Lückenlose Protokollierung aller sicherheitsrelevanten Vorgänge im Panel."
+      />
+
+      <FilterBar action="/audit" hasActiveFilters={Object.values(activeFilters).some(Boolean)}>
+        <FilterField label="Akteur">
+          <Input name="actor" defaultValue={actor ?? ""} placeholder="Benutzername" />
+        </FilterField>
+
+        <FilterField label="Aktion">
+          <Select name="action" defaultValue={action ?? ""}>
+            <option value="">Alle Aktionen</option>
+            {actions.map((entry) => (
+              <option key={entry} value={entry}>
+                {auditActionLabel(entry)}
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+
+        <FilterField label="Ergebnis" className="w-full space-y-1.5 sm:w-40">
+          <Select name="outcome" defaultValue={outcome}>
+            <option value="all">Alle</option>
+            <option value="success">Erfolgreich</option>
+            <option value="failure">Fehlgeschlagen</option>
+          </Select>
+        </FilterField>
+      </FilterBar>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-40">Zeit</TableHead>
+                <TableHead className="w-52">Aktion</TableHead>
+                <TableHead className="w-36">Akteur</TableHead>
+                <TableHead>Ziel</TableHead>
+                <TableHead className="w-32">IP</TableHead>
+                <TableHead className="w-28">Ergebnis</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableEmpty colSpan={6}>Keine Einträge gefunden.</TableEmpty>
+              ) : (
+                items.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                      {formatDateTime(entry.createdAt)}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {auditActionLabel(entry.action)}
+                      <span className="block font-mono text-[0.65rem] text-[var(--color-muted-foreground)]">
+                        {entry.action}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-36 truncate text-sm">{entry.actorName ?? "System"}</TableCell>
+                    <TableCell className="text-sm">
+                      {entry.targetLabel ?? entry.targetId ?? "—"}
+                      {entry.targetType && (
+                        <span className="ml-1.5 text-xs text-[var(--color-muted-foreground)]">
+                          ({entry.targetType})
+                        </span>
+                      )}
+                      {entry.note && (
+                        <span className="block text-xs text-[var(--color-muted-foreground)]">
+                          {truncate(entry.note, 90)}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-[var(--color-muted-foreground)]">
+                      {entry.ipAddress ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={entry.outcome === "failure" ? "destructive" : "success"}>
+                        {entry.outcome === "failure" ? "Fehler" : "OK"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+
+          <Pagination basePath="/audit" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
+        </CardContent>
+      </Card>
+    </>
+  );
+}

@@ -1,0 +1,133 @@
+import type { Metadata } from "next";
+import { PageHeader } from "@/components/page-header";
+import { FilterBar, FilterField } from "@/components/filter-bar";
+import { ModerationBadge } from "@/components/twitch-badges";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import { Select } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requirePermission } from "@/lib/auth/guard";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { listChannelOptions } from "@/lib/queries/channels";
+import { listModerationActionTypes, listModerationActions } from "@/lib/queries/twitch";
+import { formatDuration, moderationActionLabel } from "@/lib/twitch";
+import { formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
+
+export const metadata: Metadata = { title: "Moderation" };
+export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
+
+export default async function ModerationPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  await requirePermission(PERMISSIONS.MODERATION_VIEW);
+  const params = await searchParams;
+
+  const channelUuid = parseSearchParam(params.channel);
+  const action = parseSearchParam(params.action);
+  const target = parseSearchParam(params.target);
+  const from = parseSearchParam(params.from);
+  const to = parseSearchParam(params.to);
+  const page = parsePositiveInt(params.page, 1);
+
+  const [channels, actionTypes, { items, total }] = await Promise.all([
+    listChannelOptions(),
+    listModerationActionTypes(),
+    listModerationActions({ channelUuid, action, target, from, to, page, pageSize: PAGE_SIZE }),
+  ]);
+
+  const activeFilters = { channel: channelUuid, action, target, from, to };
+  const hasActiveFilters = Object.values(activeFilters).some(Boolean);
+
+  return (
+    <>
+      <PageHeader
+        title="Moderation"
+        description="Bans, Timeouts, gelöschte Nachrichten und weitere Moderationsaktionen."
+      />
+
+      <FilterBar action="/moderation" hasActiveFilters={hasActiveFilters}>
+        <FilterField label="Channel">
+          <Select name="channel" defaultValue={channelUuid ?? ""}>
+            <option value="">Alle Channels</option>
+            {channels.map((channel) => (
+              <option key={channel.uuid} value={channel.uuid}>
+                {channel.name}
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+
+        <FilterField label="Aktion">
+          <Select name="action" defaultValue={action ?? ""}>
+            <option value="">Alle Aktionen</option>
+            {actionTypes.map((type) => (
+              <option key={type} value={type}>
+                {moderationActionLabel(type)}
+              </option>
+            ))}
+          </Select>
+        </FilterField>
+
+        <FilterField label="Betroffener Nutzer">
+          <Input name="target" defaultValue={target ?? ""} placeholder="Benutzername" />
+        </FilterField>
+
+        <FilterField label="Von" className="w-full space-y-1.5 sm:w-40">
+          <Input type="date" name="from" defaultValue={from ?? ""} />
+        </FilterField>
+
+        <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
+          <Input type="date" name="to" defaultValue={to ?? ""} />
+        </FilterField>
+      </FilterBar>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-40">Zeit</TableHead>
+                <TableHead className="w-36">Aktion</TableHead>
+                <TableHead className="w-32">Channel</TableHead>
+                <TableHead className="w-40">Betroffen</TableHead>
+                <TableHead className="w-24">Dauer</TableHead>
+                <TableHead>Grund</TableHead>
+                <TableHead>Gelöschte Nachricht</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableEmpty colSpan={7}>Keine Moderationsaktionen gefunden.</TableEmpty>
+              ) : (
+                items.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                      {formatDateTime(entry.occurredAt)}
+                    </TableCell>
+                    <TableCell>
+                      <ModerationBadge action={entry.action} />
+                    </TableCell>
+                    <TableCell className="text-xs text-[var(--color-muted-foreground)]">{entry.channelName}</TableCell>
+                    <TableCell className="max-w-40 truncate font-medium">{entry.targetUserName ?? "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-xs">{formatDuration(entry.durationSeconds)}</TableCell>
+                    <TableCell className="max-w-64 truncate text-sm">{entry.reason ?? "—"}</TableCell>
+                    <TableCell className="max-w-md truncate text-sm text-[var(--color-muted-foreground)]">
+                      {entry.deletedMessageContent ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+
+          <Pagination basePath="/moderation" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
+        </CardContent>
+      </Card>
+    </>
+  );
+}
