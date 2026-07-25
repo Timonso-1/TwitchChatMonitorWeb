@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { RoleChip } from "@/components/role-chip";
+import { SessionDevice } from "@/components/session-device";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,7 +11,8 @@ import { AccountSecurityActions } from "./account-security-actions";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission, permissionLabel } from "@/lib/auth/permissions";
 import { getAccountDetail, listRoles } from "@/lib/queries/accounts";
-import { formatDateTime, formatRelative, truncate } from "@/lib/utils";
+import { formatIpAddress } from "@/lib/user-agent";
+import { formatDateTime, formatRelative } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -130,11 +132,11 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                   ) : (
                     account.sessions.map((entry) => (
                       <TableRow key={entry.id}>
-                        <TableCell className="max-w-64 text-xs">
-                          {entry.userAgent ? truncate(entry.userAgent, 70) : "Unbekannt"}
+                        <TableCell>
+                          <SessionDevice userAgent={entry.userAgent} />
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-[var(--color-muted-foreground)]">
-                          {entry.ipAddress ?? "—"}
+                        <TableCell className="whitespace-nowrap font-mono text-xs text-[var(--color-muted-foreground)]">
+                          {formatIpAddress(entry.ipAddress)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={entry.twoFactorVerified ? "success" : "warning"}>
@@ -208,6 +210,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
               totpEnabled: account.totpEnabled,
               isLocked,
               activeSessions: account.sessions.length,
+              twitchLogin: account.twitchLogin,
             }}
             canUpdate={canUpdate}
             canDelete={canDelete}

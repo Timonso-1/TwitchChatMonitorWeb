@@ -23,6 +23,10 @@ export interface AccountListItem {
   email: string;
   username: string;
   displayName: string | null;
+  twitchUserId: string | null;
+  twitchLogin: string | null;
+  twitchDisplayName: string | null;
+  twitchProfileImageUrl: string | null;
   isActive: boolean;
   totpEnabled: boolean;
   mustChangePassword: boolean;
@@ -134,6 +138,10 @@ export async function listAccounts(filters: AccountFilters): Promise<{
       email: adminUsers.email,
       username: adminUsers.username,
       displayName: adminUsers.displayName,
+      twitchUserId: adminUsers.twitchUserId,
+      twitchLogin: adminUsers.twitchLogin,
+      twitchDisplayName: adminUsers.twitchDisplayName,
+      twitchProfileImageUrl: adminUsers.twitchProfileImageUrl,
       isActive: adminUsers.isActive,
       totpEnabled: adminUsers.totpEnabled,
       mustChangePassword: adminUsers.mustChangePassword,
@@ -177,6 +185,7 @@ export interface AccountDetail extends AccountListItem {
   lastLoginIp: string | null;
   passwordChangedAt: Date | null;
   totpConfirmedAt: Date | null;
+  twitchLinkedAt: Date | null;
   updatedAt: Date;
   sessions: AccountSession[];
   permissions: string[];
@@ -215,6 +224,11 @@ export async function getAccountDetail(uuid: string): Promise<AccountDetail | nu
     email: user.email,
     username: user.username,
     displayName: user.displayName,
+    twitchUserId: user.twitchUserId,
+    twitchLogin: user.twitchLogin,
+    twitchDisplayName: user.twitchDisplayName,
+    twitchProfileImageUrl: user.twitchProfileImageUrl,
+    twitchLinkedAt: user.twitchLinkedAt,
     isActive: user.isActive,
     totpEnabled: user.totpEnabled,
     mustChangePassword: user.mustChangePassword,

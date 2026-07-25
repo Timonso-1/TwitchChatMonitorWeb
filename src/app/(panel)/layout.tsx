@@ -16,11 +16,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
       user={{
         uuid: session.user.uuid,
         username: session.user.username,
-        displayName: session.user.displayName,
+        // Der Twitch-Anzeigename hat Vorrang – er ist das, was das Team kennt.
+        displayName: session.user.twitchDisplayName ?? session.user.displayName,
         email: session.user.email,
         permissions: session.user.permissions,
         roles: session.user.roles.map((role) => ({ uuid: role.uuid, name: role.name, color: role.color })),
         totpEnabled: session.user.totpEnabled,
+        avatarUrl: session.user.twitchProfileImageUrl,
+        twitchLogin: session.user.twitchLogin,
       }}
       theme={theme}
       logoutAction={logoutAction}

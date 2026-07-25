@@ -46,6 +46,7 @@ Die panel-eigenen Tabellen anlegen — die Dateien in dieser Reihenfolge einspie
 1. `sql/001_admin_schema.sql` — Accounts, Rollen, Sessions, Audit-Log
 2. `sql/003_viewer_notes.sql` — Zuschauer-Notizen und die zugehörigen Rechte
 3. `sql/004_viewer_profiles.sql` — Zwischenspeicher für Twitch-Profilbilder
+4. `sql/005_twitch_link.sql` — Twitch-Verknüpfung der Panel-Accounts
 
 In HeidiSQL: Datenbank auswählen, **Datei → SQL-Datei öffnen**, dann **F9**.
 
@@ -215,6 +216,33 @@ src/
 | `npm run seed`       | Rollen und ersten Superadmin anlegen            |
 | `npm run db:push`    | Schema mit der Datenbank abgleichen             |
 | `npm run db:studio`  | Drizzle Studio öffnen                           |
+
+## Twitch-Verknüpfung der Accounts
+
+Jeder Panel-Account wird einmalig mit einem Twitch-Account verbunden. Anzeigename und
+Profilbild kommen anschließend von dort — in der Seitenleiste, auf der Profilseite und in
+der Accountverwaltung.
+
+**Einrichtung.** In der Twitch-Anwendung unter *OAuth Redirect URLs* eintragen:
+
+```
+http://localhost:3000/auth/twitch/callback
+```
+
+Der Wert muss zeichengenau mit `TWITCH_REDIRECT_URI` bzw. dem aus `APP_URL` abgeleiteten
+Pfad übereinstimmen — Twitch vergleicht exakt, auch abschließende Schrägstriche zählen.
+
+**Ablauf.** Nach Passwortwechsel und 2FA-Einrichtung landet ein neuer Account auf
+`/link-twitch` und kommt erst nach der Verknüpfung ins Panel. `ENFORCE_TWITCH_LINK=false`
+macht den Schritt optional.
+
+**Was gespeichert wird.** Nur Twitch-ID, Login, Anzeigename und Bild-URL. Das
+Zugangstoken wird direkt nach dem Abruf der Identität entwertet und nicht abgelegt; es
+werden auch keine Scopes angefragt, das Panel kann also nichts im Namen des Nutzers tun.
+
+**Eindeutigkeit.** Ein Twitch-Account gehört zu genau einem Panel-Account — ein zweiter
+Versuch scheitert mit einem Hinweis. Lösen kann die Verknüpfung nur jemand mit
+`accounts.update` auf der Account-Detailseite; danach muss der Nutzer neu verknüpfen.
 
 ## Profilbilder (Twitch-API)
 

@@ -440,6 +440,58 @@ export async function revokeAccountSessionsAction(_prev: ActionState, formData: 
   return successState(sessionId ? "Sitzung wurde beendet." : "Alle Sitzungen wurden beendet.");
 }
 
+/**
+ * Loest die Twitch-Verknuepfung eines Accounts.
+ * Bewusst nur fuer Administratoren – sonst koennte sich jemand
+ * unbemerkt hinter einem anderen Twitch-Namen verstecken.
+ */
+export async function unlinkTwitchAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { session, error } = await guard(PERMISSIONS.ACCOUNTS_UPDATE);
+  if (!session) return error!;
+
+  const uuid = String(formData.get("uuid") ?? "");
+
+  const [target] = await db.select().from(adminUsers).where(eq(adminUsers.uuid, uuid)).limit(1);
+  if (!target) return errorState("Account wurde nicht gefunden.");
+
+  if (!target.twitchUserId) {
+    return errorState("Für diesen Account besteht keine Twitch-Verknüpfung.");
+  }
+
+  const targetPriority = await getTargetPriority(uuid);
+  if (uuid !== session.user.uuid && !canManagePriority(session, targetPriority)) {
+    return errorState("Dieser Account hat mindestens deine eigene Berechtigungsstufe.");
+  }
+
+  const now = new Date();
+
+  await db
+    .update(adminUsers)
+    .set({
+      twitchUserId: null,
+      twitchLogin: null,
+      twitchDisplayName: null,
+      twitchProfileImageUrl: null,
+      twitchLinkedAt: null,
+      updatedAt: now,
+    })
+    .where(eq(adminUsers.uuid, uuid));
+
+  await writeAudit({
+    action: AUDIT_ACTIONS.TWITCH_UNLINKED,
+    actorUuid: session.user.uuid,
+    actorName: session.user.username,
+    targetType: "account",
+    targetId: uuid,
+    targetLabel: target.username,
+    metadata: { previousTwitchLogin: target.twitchLogin },
+    note: "Der Nutzer muss beim nächsten Login neu verknüpfen.",
+  });
+
+  revalidatePath(`/accounts/${uuid}`);
+  return successState("Twitch-Verknüpfung wurde gelöst.");
+}
+
 export async function deleteAccountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { session, error } = await guard(PERMISSIONS.ACCOUNTS_DELETE);
   if (!session) return error!;

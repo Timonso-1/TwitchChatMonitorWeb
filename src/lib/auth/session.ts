@@ -45,6 +45,11 @@ export interface SessionUser {
   isActive: boolean;
   totpEnabled: boolean;
   mustChangePassword: boolean;
+  /** Verknüpfter Twitch-Account, falls vorhanden. */
+  twitchUserId: string | null;
+  twitchLogin: string | null;
+  twitchDisplayName: string | null;
+  twitchProfileImageUrl: string | null;
   roles: SessionRole[];
   permissions: string[];
   /** Hoechste Rollen-Prioritaet des Nutzers. Verhindert Eskalation nach oben. */
@@ -220,6 +225,10 @@ export const getSession = cache(async (): Promise<ActiveSession | null> => {
       isActive: adminUsers.isActive,
       totpEnabled: adminUsers.totpEnabled,
       mustChangePassword: adminUsers.mustChangePassword,
+      twitchUserId: adminUsers.twitchUserId,
+      twitchLogin: adminUsers.twitchLogin,
+      twitchDisplayName: adminUsers.twitchDisplayName,
+      twitchProfileImageUrl: adminUsers.twitchProfileImageUrl,
     })
     .from(adminSessions)
     .innerJoin(adminUsers, eq(adminSessions.userUuid, adminUsers.uuid))
@@ -261,6 +270,10 @@ export const getSession = cache(async (): Promise<ActiveSession | null> => {
       isActive: row.isActive,
       totpEnabled: row.totpEnabled,
       mustChangePassword: row.mustChangePassword,
+      twitchUserId: row.twitchUserId,
+      twitchLogin: row.twitchLogin,
+      twitchDisplayName: row.twitchDisplayName,
+      twitchProfileImageUrl: row.twitchProfileImageUrl,
       roles: authorization.roles,
       permissions: authorization.permissions,
       maxPriority: authorization.maxPriority,

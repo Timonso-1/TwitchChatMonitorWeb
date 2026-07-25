@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { hasAnyPermission, hasPermission, type Permission } from "./permissions";
 import { getSession, isTwoFactorEnforced, type ActiveSession } from "./session";
+import { isTwitchLinkEnforced, isTwitchOAuthConfigured } from "./twitch-oauth";
 
 /** Wird geworfen, wenn eine Server Action ohne ausreichende Rechte aufgerufen wird. */
 export class AuthorizationError extends Error {
@@ -32,6 +33,11 @@ export async function requireSession(): Promise<ActiveSession> {
 
   if (session.user.mustChangePassword) {
     redirect("/change-password");
+  }
+
+  // Twitch-Verknuepfung ist der letzte Pflichtschritt der Einrichtung.
+  if (!session.user.twitchUserId && isTwitchLinkEnforced() && isTwitchOAuthConfigured()) {
+    redirect("/link-twitch");
   }
 
   return session;

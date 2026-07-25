@@ -38,6 +38,13 @@ export const adminUsers = mysqlTable(
     lastLoginAt: datetime("last_login_at"),
     lastLoginIp: varchar("last_login_ip", { length: 45 }),
     passwordChangedAt: datetime("password_changed_at"),
+
+    /** Verknüpfter Twitch-Account – Grundlage für Avatar und Anzeigename. */
+    twitchUserId: varchar("twitch_user_id", { length: 32 }),
+    twitchLogin: varchar("twitch_login", { length: 64 }),
+    twitchDisplayName: varchar("twitch_display_name", { length: 64 }),
+    twitchProfileImageUrl: varchar("twitch_profile_image_url", { length: 512 }),
+    twitchLinkedAt: datetime("twitch_linked_at"),
     createdAt: datetime("created_at").notNull(),
     updatedAt: datetime("updated_at").notNull(),
     createdByUuid: char("created_by_uuid", { length: 36 }),
@@ -46,6 +53,8 @@ export const adminUsers = mysqlTable(
     primaryKey({ columns: [table.uuid] }),
     uniqueIndex("uq_admin_users_email").on(table.email),
     uniqueIndex("uq_admin_users_username").on(table.username),
+    // Ein Twitch-Account darf nur zu genau einem Panel-Account gehören.
+    uniqueIndex("uq_admin_users_twitch").on(table.twitchUserId),
     index("idx_admin_users_active").on(table.isActive),
   ],
 );

@@ -17,7 +17,16 @@ const ICONS: Record<ThemePreference, typeof Sun> = {
  * Wendet die Klasse sofort im Browser an und speichert die Wahl
  * parallel per Server Action im Cookie.
  */
-export function ThemeSwitch({ value, className }: { value: ThemePreference; className?: string }) {
+export function ThemeSwitch({
+  value,
+  className,
+  /** Beschriftung neben dem Symbol anzeigen. */
+  withLabels,
+}: {
+  value: ThemePreference;
+  className?: string;
+  withLabels?: boolean;
+}) {
   const [current, setCurrent] = React.useState<ThemePreference>(value);
 
   function apply(preference: ThemePreference) {
@@ -73,14 +82,14 @@ export function ThemeSwitch({ value, className }: { value: ThemePreference; clas
             aria-pressed={active}
             title={option.label}
             className={cn(
-              "flex flex-1 items-center justify-center rounded-[5px] py-1 transition-colors",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[5px] py-1.5 text-xs transition-colors",
               active
-                ? "bg-[var(--color-accent)] text-[var(--color-foreground)]"
+                ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
                 : "text-[var(--color-subtle)] hover:text-[var(--color-foreground)]",
             )}
           >
             <Icon className="size-3.5" />
-            <span className="sr-only">{option.label}</span>
+            {withLabels ? option.label : <span className="sr-only">{option.label}</span>}
           </button>
         );
       })}

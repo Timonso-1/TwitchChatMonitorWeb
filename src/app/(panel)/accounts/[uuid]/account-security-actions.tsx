@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, LockOpen, LogOut, ShieldOff, Trash2 } from "lucide-react";
+import { KeyRound, LockOpen, LogOut, ShieldOff, Trash2, Unlink } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,7 @@ import {
   resetAccountPasswordAction,
   resetAccountTwoFactorAction,
   revokeAccountSessionsAction,
+  unlinkTwitchAction,
   unlockAccountAction,
 } from "@/lib/actions/accounts";
 import { IDLE_STATE, type ActionState } from "@/lib/actions/types";
@@ -34,6 +35,7 @@ interface AccountSecurityActionsProps {
     totpEnabled: boolean;
     isLocked: boolean;
     activeSessions: number;
+    twitchLogin: string | null;
   };
   canUpdate: boolean;
   canDelete: boolean;
@@ -55,11 +57,12 @@ export function AccountSecurityActions({
   const [reset2faState, reset2faAction] = useActionState(resetAccountTwoFactorAction, IDLE_STATE);
   const [unlockState, unlockAction] = useActionState(unlockAccountAction, IDLE_STATE);
   const [revokeState, revokeAction] = useActionState(revokeAccountSessionsAction, IDLE_STATE);
+  const [unlinkState, unlinkAction] = useActionState(unlinkTwitchAction, IDLE_STATE);
 
   useEffect(() => {
-    const states: ActionState[] = [reset2faState, unlockState, revokeState];
+    const states: ActionState[] = [reset2faState, unlockState, revokeState, unlinkState];
     if (states.some((state) => state.status === "success")) router.refresh();
-  }, [reset2faState, unlockState, revokeState, router]);
+  }, [reset2faState, unlockState, revokeState, unlinkState, router]);
 
   const newPassword = resetPwState.data?.initialPassword as string | undefined;
   const nothingAvailable = !canUpdate && !canDelete && !canReset2fa && !canManageSessions;
@@ -122,6 +125,16 @@ export function AccountSecurityActions({
               <SubmitButton variant="outline" size="sm" className="w-full" pendingLabel="Entsperren…">
                 <LockOpen />
                 Sperre aufheben
+              </SubmitButton>
+            </form>
+          )}
+
+          {canUpdate && account.twitchLogin && (
+            <form action={unlinkAction}>
+              <input type="hidden" name="uuid" value={account.uuid} />
+              <SubmitButton variant="outline" size="sm" className="w-full" pendingLabel="Lösen…">
+                <Unlink />
+                Twitch-Verknüpfung lösen
               </SubmitButton>
             </form>
           )}

@@ -17,6 +17,7 @@ import {
   ScrollText,
   ShieldAlert,
   ShieldCheck,
+  Twitch,
   UserCog,
   Users,
   X,
@@ -29,7 +30,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -62,6 +62,9 @@ export interface AppShellUser {
   permissions: string[];
   roles: Array<{ uuid: string; name: string; color: string }>;
   totpEnabled: boolean;
+  /** Profilbild aus der Twitch-Verknüpfung. */
+  avatarUrl: string | null;
+  twitchLogin: string | null;
 }
 
 interface AppShellProps {
@@ -163,19 +166,24 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   const initials = displayName.slice(0, 2).toUpperCase();
 
   const brand = (
-    <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] px-4 py-3.5">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)]">
-        <Radio className="size-4" />
+    <Link
+      href="/dashboard"
+      className="flex shrink-0 items-center gap-2.5 border-b border-[var(--color-border)] px-3 py-2.5 transition-colors hover:bg-[var(--color-background)]"
+    >
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#9147ff]">
+        <Twitch className="size-4 text-white" />
       </div>
       <div className="min-w-0 leading-tight">
         <p className="truncate text-sm font-semibold">TwitchPanel</p>
         <p className="truncate text-xs text-[var(--color-subtle)]">Chat-Monitor</p>
       </div>
-    </div>
+    </Link>
   );
 
   const navigation = (
-    <nav className="space-y-1 overflow-y-auto scrollbar-thin px-2.5 py-3">
+    // shrink-0 statt flex-1: die Navigation nimmt nur ihre eigene Höhe ein,
+    // damit der Account-Block direkt darunter sitzt statt am unteren Rand.
+    <nav className="min-h-0 shrink overflow-y-auto scrollbar-thin px-2 py-2">
       {sections.map((section) => {
         const isCollapsed = collapsed.includes(section.label);
         // Eine Gruppe mit aktivem Eintrag bleibt sichtbar, auch wenn sie eingeklappt ist.
@@ -183,21 +191,24 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
         const showItems = !isCollapsed || hasActiveItem;
 
         return (
-          <div key={section.label}>
+          <div key={section.label} className="pb-1 last:pb-0">
             <button
               type="button"
               onClick={() => toggleSection(section.label)}
               aria-expanded={showItems}
-              className="flex w-full items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-[var(--color-subtle)] transition-colors hover:text-[var(--color-muted-foreground)]"
+              className="group flex w-full items-center gap-1 rounded px-2 py-1 text-[0.7rem] font-medium uppercase tracking-wide text-[var(--color-subtle)] transition-colors hover:text-[var(--color-muted-foreground)]"
             >
               <ChevronDown
-                className={cn("size-3 transition-transform duration-150", !showItems && "-rotate-90")}
+                className={cn(
+                  "size-3 shrink-0 transition-transform duration-150",
+                  !showItems && "-rotate-90",
+                )}
               />
-              {section.label}
+              <span className="truncate">{section.label}</span>
             </button>
 
             {showItems && (
-              <div className="space-y-0.5 pt-0.5">
+              <div className="space-y-px">
                 {section.items.map((item) => {
                   const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
                   const active = isActive(pathname, item);
@@ -208,14 +219,14 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors duration-100",
+                        "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors duration-100",
                         active
                           ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
                           : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-surface)] hover:text-[var(--color-foreground)]",
                       )}
                     >
-                      <Icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-70")} />
-                      {item.label}
+                      <Icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-60")} />
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   );
                 })}
@@ -229,72 +240,94 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
 
   /** Account-Block am Fuss der Seitenleiste. */
   const accountBlock = (
-    <div className="border-t border-[var(--color-border)] p-2.5">
+    <div className="shrink-0 border-t border-[var(--color-border)] p-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors hover:bg-[var(--color-surface)]"
+            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--color-background)]"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--color-secondary)] text-xs font-semibold">
-              {initials}
-            </span>
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatarUrl}
+                alt=""
+                aria-hidden
+                className="size-7 shrink-0 rounded-md object-cover"
+              />
+            ) : (
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--color-secondary)] text-[0.65rem] font-semibold">
+                {initials}
+              </span>
+            )}
 
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-sm font-medium">{displayName}</span>
-              <span className="block truncate text-xs text-[var(--color-subtle)]">{user.email}</span>
+              <span className="block truncate text-xs text-[var(--color-subtle)]">
+                {user.twitchLogin ? `@${user.twitchLogin}` : user.email}
+              </span>
             </span>
 
             <ChevronsUpDown className="size-3.5 shrink-0 text-[var(--color-subtle)]" />
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent side="top" align="start" className="w-[15rem]">
-          <DropdownMenuLabel>
-            <span className="block truncate text-sm font-medium text-[var(--color-foreground)]">{displayName}</span>
-            <span className="block truncate text-xs font-normal text-[var(--color-muted-foreground)]">
-              {user.email}
-            </span>
-          </DropdownMenuLabel>
+        <DropdownMenuContent side="top" align="start" className="w-64 p-0">
+          {/* Kopf mit Avatar, damit das Menü nicht wie eine lose Liste wirkt. */}
+          <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] p-3">
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatarUrl} alt="" aria-hidden className="size-9 shrink-0 rounded-md object-cover" />
+            ) : (
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-secondary)] text-xs font-semibold">
+                {initials}
+              </span>
+            )}
 
-          {user.roles.length > 0 && (
-            <div className="flex flex-wrap gap-1 px-2 pb-2">
-              {user.roles.map((role) => (
-                <span
-                  key={role.uuid}
-                  className="rounded px-1.5 py-0.5 text-[0.65rem] font-medium"
-                  style={{ backgroundColor: `${role.color}22`, color: role.color }}
-                >
-                  {role.name}
-                </span>
-              ))}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{displayName}</p>
+              <p className="truncate text-xs text-[var(--color-muted-foreground)]">{user.email}</p>
+
+              {user.roles.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-1.5">
+                  {user.roles.map((role) => (
+                    <span
+                      key={role.uuid}
+                      className="rounded px-1.5 py-0.5 text-[0.65rem] font-medium"
+                      style={{ backgroundColor: `${role.color}22`, color: role.color }}
+                    >
+                      {role.name}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-
-          <DropdownMenuSeparator />
-
-          <div className="px-2 py-1.5">
-            <p className="pb-1.5 text-xs text-[var(--color-muted-foreground)]">Erscheinungsbild</p>
-            <ThemeSwitch value={theme} />
           </div>
 
-          <DropdownMenuSeparator />
+          <div className="border-b border-[var(--color-border)] p-3">
+            <p className="pb-1.5 text-xs font-medium text-[var(--color-muted-foreground)]">Erscheinungsbild</p>
+            <ThemeSwitch value={theme} withLabels />
+          </div>
 
-          <DropdownMenuItem asChild>
-            <Link href="/profile">
-              <ShieldCheck />
-              Profil &amp; Sicherheit
-            </Link>
-          </DropdownMenuItem>
+          <div className="p-1">
+            <DropdownMenuItem asChild>
+              <Link href="/profile">
+                <ShieldCheck />
+                Profil &amp; Sicherheit
+              </Link>
+            </DropdownMenuItem>
 
-          <DropdownMenuItem asChild destructive>
-            <form action={logoutAction} className="w-full">
-              <button type="submit" className="flex w-full items-center gap-2">
-                <LogOut />
-                Abmelden
-              </button>
-            </form>
-          </DropdownMenuItem>
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem asChild destructive>
+              <form action={logoutAction} className="w-full">
+                <button type="submit" className="flex w-full items-center gap-2">
+                  <LogOut />
+                  Abmelden
+                </button>
+              </form>
+            </DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -304,15 +337,14 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
     <>
       {brand}
 
-      {/* Nimmt nur die noetige Hoehe ein; der Rest schiebt den Account-Block nach unten. */}
+      {/* Die Navigation traegt den Scrollbereich; der Account-Block bleibt unten sichtbar. */}
       {navigation}
-      <div className="flex-1" />
 
       {!user.totpEnabled && (
-        <div className="px-2.5 pb-2">
+        <div className="shrink-0 px-2 pb-2">
           <Link
             href="/setup-2fa"
-            className="flex items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--color-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-2.5 py-2 text-xs text-[var(--color-foreground)]"
+            className="flex items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--color-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-2.5 py-1.5 text-xs text-[var(--color-foreground)]"
           >
             <ShieldAlert className="size-3.5 shrink-0 text-[var(--color-warning)]" />
             Zwei-Faktor einrichten
@@ -327,8 +359,12 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   return (
     <div className="flex min-h-dvh bg-[var(--color-background)]">
       {sidebarVisible && (
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex">
-          {sidebarInner}
+        // Der Rahmen läuft über die volle Höhe, die eingefärbte Fläche endet
+        // aber mit dem Inhalt – darunter bleibt der Seitenhintergrund sichtbar.
+        <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-[var(--color-border)] lg:flex">
+          <div className="flex max-h-full flex-col overflow-hidden rounded-br-lg border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+            {sidebarInner}
+          </div>
         </aside>
       )}
 

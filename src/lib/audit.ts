@@ -39,6 +39,10 @@ export const AUDIT_ACTIONS = {
   VIEWER_NOTE_DELETED: "viewer_note.deleted",
 
   MESSAGES_EXPORTED: "messages.exported",
+
+  TWITCH_LINKED: "auth.twitch.linked",
+  TWITCH_UNLINKED: "auth.twitch.unlinked",
+  TWITCH_LINK_FAILED: "auth.twitch.link_failed",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -74,6 +78,9 @@ const ACTION_LABELS: Record<string, string> = {
   [AUDIT_ACTIONS.VIEWER_NOTE_UPDATED]: "Notiz bearbeitet",
   [AUDIT_ACTIONS.VIEWER_NOTE_DELETED]: "Notiz geloescht",
   [AUDIT_ACTIONS.MESSAGES_EXPORTED]: "Nachrichten exportiert",
+  [AUDIT_ACTIONS.TWITCH_LINKED]: "Twitch verknuepft",
+  [AUDIT_ACTIONS.TWITCH_UNLINKED]: "Twitch-Verknuepfung geloest",
+  [AUDIT_ACTIONS.TWITCH_LINK_FAILED]: "Twitch-Verknuepfung fehlgeschlagen",
 };
 
 export function auditActionLabel(action: string): string {

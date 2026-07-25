@@ -1,0 +1,47 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { getSession } from "@/lib/auth/session";
+import {
+  OAUTH_STATE_COOKIE,
+  OAUTH_STATE_MAX_AGE,
+  buildAuthorizeUrl,
+  createOAuthState,
+  isTwitchOAuthConfigured,
+} from "@/lib/auth/twitch-oauth";
+
+/**
+ * Startet die Twitch-Anmeldung.
+ * Der State liegt gehasht in der URL und im Klartext im Cookie –
+ * so laesst sich der Rueckweg pruefen, ohne das Geheimnis preiszugeben.
+ */
+export async function GET(request: Request) {
+  const session = await getSession();
+
+  // Nur angemeldete Nutzer duerfen verknuepfen – die Verknuepfung
+  // ersetzt den Login nicht, sie ergaenzt ihn.
+  if (!session) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (!isTwitchOAuthConfigured()) {
+    return NextResponse.redirect(new URL("/link-twitch?error=not_configured", request.url));
+  }
+
+  const state = createOAuthState();
+  const authorizeUrl = buildAuthorizeUrl(state.hashed);
+
+  if (!authorizeUrl) {
+    return NextResponse.redirect(new URL("/link-twitch?error=not_configured", request.url));
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(OAUTH_STATE_COOKIE, state.raw, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: OAUTH_STATE_MAX_AGE,
+  });
+
+  return NextResponse.redirect(authorizeUrl);
+}
