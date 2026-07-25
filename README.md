@@ -45,6 +45,7 @@ Die panel-eigenen Tabellen anlegen — die Dateien in dieser Reihenfolge einspie
 
 1. `sql/001_admin_schema.sql` — Accounts, Rollen, Sessions, Audit-Log
 2. `sql/003_viewer_notes.sql` — Zuschauer-Notizen und die zugehörigen Rechte
+3. `sql/004_viewer_profiles.sql` — Zwischenspeicher für Twitch-Profilbilder
 
 In HeidiSQL: Datenbank auswählen, **Datei → SQL-Datei öffnen**, dann **F9**.
 
@@ -112,6 +113,7 @@ Beim ersten Login wirst du zur Passwortänderung und zur 2FA-Einrichtung geführ
 | `admin_sessions`         | Aktive Sitzungen (ID = SHA-256 des Cookie-Tokens)            |
 | `admin_recovery_codes`   | Einmal verwendbare 2FA-Wiederherstellungscodes               |
 | `admin_viewer_notes`     | Interne Notizen zu Twitch-Zuschauern                         |
+| `admin_viewer_profiles`  | Zwischenspeicher für Profilbilder aus der Twitch-API         |
 | `admin_audit_log`        | Protokoll aller sicherheitsrelevanten Vorgänge               |
 
 ### Twitch-Rohwerte
@@ -213,6 +215,35 @@ src/
 | `npm run seed`       | Rollen und ersten Superadmin anlegen            |
 | `npm run db:push`    | Schema mit der Datenbank abgleichen             |
 | `npm run db:studio`  | Drizzle Studio öffnen                           |
+
+## Profilbilder (Twitch-API)
+
+Profilbilder stehen nicht in der Chatdatenbank — sie kommen über `GET /helix/users`.
+Dafür wird eine Twitch-Anwendung benötigt (anzulegen unter
+[dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps)); die Werte gehören in die `.env`:
+
+```
+TWITCH_CLIENT_ID=
+TWITCH_CLIENT_SECRET=
+```
+
+Das Panel holt sich damit ein App-Access-Token (Client-Credentials-Flow) und fragt fehlende
+Profile gesammelt ab — bis zu 100 User-IDs pro Anfrage. Die Antworten landen in
+`admin_viewer_profiles` und werden erst nach sieben Tagen erneuert; nicht gefundene Accounts
+erst nach 30 Tagen. Ohne Zugangsdaten zeigt das Panel stattdessen Initialen-Kacheln —
+es gibt keine Fehlermeldung, die Funktion ist einfach still.
+
+## Diagramme
+
+Alle Diagramme liegen unter `src/components/charts/`. Wichtig bei der Verwendung:
+
+**Formatierung wird als Name übergeben, nie als Funktion.** Server Components dürfen keine
+Funktionen an Client Components reichen — deshalb nehmen die Charts `xFormat="date"` statt
+`xTickFormatter={fn}`. Die verfügbaren Namen stehen im Typ `AxisFormat` in
+`chart-primitives.tsx`; ein fehlendes Format wird dort ergänzt, nicht im Aufruf umgangen.
+
+Farben kommen über die Rollen `chart-1` bis `chart-5` aus den CSS-Variablen und passen sich
+damit automatisch dem Theme an.
 
 ## Erscheinungsbild
 

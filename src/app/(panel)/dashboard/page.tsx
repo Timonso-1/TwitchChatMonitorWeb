@@ -118,6 +118,8 @@ export default async function DashboardPage({
               height={280}
               xFormat={hourly ? "time" : "date"}
               labelFormat={hourly ? "datetime" : "weekday-long"}
+              xLabel={hourly ? "Uhrzeit" : "Datum"}
+              yLabel="Anzahl"
             />
           </CardContent>
         </Card>
@@ -137,6 +139,7 @@ export default async function DashboardPage({
                 series={[{ key: "messages", label: "Nachrichten", color: "chart-2" }]}
                 horizontal
                 height={Math.max(180, topChannels.length * 34)}
+                xLabel="Nachrichten im gewählten Zeitraum"
                 emptyMessage="Keine Channel-Aktivität im Zeitraum."
               />
             </CardContent>
@@ -180,6 +183,7 @@ export default async function DashboardPage({
               series={[{ key: "messages", label: "Nachrichten", color: "chart-3" }]}
               horizontal
               height={Math.max(180, topChatters.length * 34)}
+              xLabel="Nachrichten im gewählten Zeitraum"
             />
           </CardContent>
         </Card>

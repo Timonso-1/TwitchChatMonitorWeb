@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AxisCaption,
   CHART_COLOR_VARS,
   ChartEmpty,
   ChartLegend,
@@ -35,6 +36,10 @@ interface AreaChartProps<T extends Record<string, unknown>> {
   valueFormat?: ValueFormat;
   emptyMessage?: string;
   hideYAxis?: boolean;
+  /** Beschriftung unter der X-Achse, z. B. "Datum". */
+  xLabel?: string;
+  /** Beschriftung an der Y-Achse, z. B. "Nachrichten". */
+  yLabel?: string;
 }
 
 /** Flaechendiagramm mit weichem Farbverlauf – fuer Zeitreihen. */
@@ -48,6 +53,8 @@ export function AreaChart<T extends Record<string, unknown>>({
   valueFormat,
   emptyMessage,
   hideYAxis,
+  xLabel,
+  yLabel,
 }: AreaChartProps<T>) {
   const mounted = useMounted();
   const gradientId = React.useId();
@@ -80,7 +87,23 @@ export function AreaChart<T extends Record<string, unknown>>({
           />
 
           {!hideYAxis && (
-            <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={(value) => formatNumber(value)} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              width={yLabel ? 68 : 56}
+              tickFormatter={(value) => formatNumber(value)}
+              label={
+                yLabel
+                  ? {
+                      value: yLabel,
+                      angle: -90,
+                      position: "insideLeft",
+                      offset: 12,
+                      style: { fill: "var(--color-subtle)", fontSize: 11, textAnchor: "middle" },
+                    }
+                  : undefined
+              }
+            />
           )}
 
           <Tooltip content={<ChartTooltip labelFormat={labelFormat ?? xFormat} valueFormat={valueFormat} />} />
@@ -100,7 +123,8 @@ export function AreaChart<T extends Record<string, unknown>>({
         </RechartsAreaChart>
       </ResponsiveContainer>
 
-      <ChartLegend series={series} />
+      <ChartLegend series={series} always={Boolean(series[0]?.unit)} />
+      {xLabel && <AxisCaption>{xLabel}</AxisCaption>}
     </div>
   );
 }

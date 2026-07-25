@@ -5,6 +5,7 @@ import { CalendarDays, Clock, Coins, Eye, MessageSquare, ShieldAlert, Zap } from
 import { AreaChart, BarChart } from "@/components/charts";
 import { StatCard } from "@/components/stat-card";
 import { ChatRoleBadges, EventBadge, ModerationBadge, SubTierBadge } from "@/components/twitch-badges";
+import { ViewerAvatar } from "@/components/viewer-avatar";
 import { ViewerNotesPanel } from "@/components/viewer-notes-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   getViewerWeekdayDistribution,
 } from "@/lib/queries/viewer-profile";
 import { eventDetailText, formatDuration, subTierLabel } from "@/lib/twitch";
+import { getViewerAvatar } from "@/lib/twitch-api";
 import { formatDateTime, formatNumber, formatRelative } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -42,18 +44,18 @@ export default async function ViewerProfilePage({ params }: { params: Promise<{ 
   const canSeeEvents = hasPermission(permissions, PERMISSIONS.EVENTS_VIEW);
   const canSeeModeration = hasPermission(permissions, PERMISSIONS.MODERATION_VIEW);
 
-  const [profile, activity, hourDistribution, weekdayDistribution] = await Promise.all([
+  const [profile, activity, hourDistribution, weekdayDistribution, avatar] = await Promise.all([
     getViewerProfile(userId, { includeNotes: canViewNotes }),
     getViewerActivity(userId, 30),
     getViewerHourDistribution(userId),
     getViewerWeekdayDistribution(userId),
+    getViewerAvatar(userId),
   ]);
 
   if (!profile) notFound();
 
   const roles = profile.lastKnownRoles;
-  const displayName = profile.displayName ?? profile.userName;
-  const initials = displayName.slice(0, 2).toUpperCase();
+  const displayName = profile.displayName ?? avatar?.displayName ?? profile.userName;
   const criticalNotes = profile.notes.filter((note) => note.severity === "critical").length;
 
   // ---------------------------------------------------------------- Überblick
@@ -73,6 +75,8 @@ export default async function ViewerProfilePage({ params }: { params: Promise<{ 
               height={220}
               xFormat="date"
               labelFormat="weekday-long"
+              xLabel="Datum"
+              yLabel="Nachrichten"
               emptyMessage="Keine Aktivität in den letzten 30 Tagen."
             />
           </CardContent>
@@ -89,6 +93,7 @@ export default async function ViewerProfilePage({ params }: { params: Promise<{ 
               xKey="day"
               series={[{ key: "messages", label: "Nachrichten", color: "chart-3" }]}
               height={220}
+              xLabel="Wochentag"
             />
           </CardContent>
         </Card>
@@ -107,6 +112,7 @@ export default async function ViewerProfilePage({ params }: { params: Promise<{ 
               series={[{ key: "messages", label: "Nachrichten", color: "chart-5" }]}
               height={200}
               xFormat="hour-short"
+              xLabel="Stunde des Tages (0–23 Uhr)"
             />
           </CardContent>
         </Card>
@@ -361,15 +367,12 @@ export default async function ViewerProfilePage({ params }: { params: Promise<{ 
       {/* Kopfbereich im Stil der Referenz */}
       <Card>
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-          <div
-            className="flex size-16 shrink-0 items-center justify-center rounded-lg text-xl font-semibold"
-            style={{
-              backgroundColor: roles?.color ? `${roles.color}22` : "var(--color-secondary)",
-              color: roles?.color ?? "var(--color-foreground)",
-            }}
-          >
-            {initials}
-          </div>
+          <ViewerAvatar
+            name={displayName}
+            imageUrl={avatar?.profileImageUrl}
+            color={roles?.color}
+            size="xl"
+          />
 
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">

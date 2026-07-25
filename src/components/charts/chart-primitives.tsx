@@ -19,6 +19,8 @@ export interface SeriesConfig {
   key: string;
   label: string;
   color: ChartColor;
+  /** Einheit fuer Legende und Tooltip, z. B. "Nachrichten". */
+  unit?: string;
 }
 
 /**
@@ -135,18 +137,42 @@ export function ChartTooltip({ active, payload, label, labelFormat, valueFormat 
 }
 
 /** Legende unter dem Diagramm. */
-export function ChartLegend({ series, className }: { series: SeriesConfig[]; className?: string }) {
-  if (series.length <= 1) return null;
+export function ChartLegend({
+  series,
+  className,
+  /** Auch bei einer einzelnen Serie anzeigen. */
+  always,
+}: {
+  series: SeriesConfig[];
+  className?: string;
+  always?: boolean;
+}) {
+  if (series.length <= 1 && !always) return null;
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-center gap-4 pt-2", className)}>
+    <div className={cn("flex flex-wrap items-center justify-center gap-4 pt-3", className)}>
       {series.map((entry) => (
         <span key={entry.key} className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
           <span className="size-2 rounded-[2px]" style={{ backgroundColor: CHART_COLOR_VARS[entry.color] }} />
           {entry.label}
+          {entry.unit && <span className="text-[var(--color-subtle)]">({entry.unit})</span>}
         </span>
       ))}
     </div>
+  );
+}
+
+/** Beschriftung einer Achse, dezent unter bzw. neben dem Diagramm. */
+export function AxisCaption({ children, align = "center" }: { children: React.ReactNode; align?: "left" | "center" }) {
+  return (
+    <p
+      className={cn(
+        "pt-1 text-xs text-[var(--color-subtle)]",
+        align === "center" ? "text-center" : "text-left",
+      )}
+    >
+      {children}
+    </p>
   );
 }
 

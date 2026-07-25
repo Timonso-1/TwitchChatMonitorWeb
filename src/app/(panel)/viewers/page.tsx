@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { StickyNote } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { Repeat2, StickyNote, UserPlus, Users } from "lucide-react";
+import { ChartCard } from "@/components/chart-card";
+import { ComposedChart } from "@/components/charts";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { PageHeader } from "@/components/page-header";
+import { RangeSelector } from "@/components/range-selector";
+import { StatCard } from "@/components/stat-card";
+import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +18,15 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listViewers } from "@/lib/queries/twitch";
 import { countNotesForViewers } from "@/lib/queries/viewer-profile";
-import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
+import {
+  TREND_RANGES,
+  getReturningViewers,
+  getViewerTrend,
+  normalizeTrendRange,
+  rangeLabel,
+} from "@/lib/queries/trends";
+import { getViewerAvatars } from "@/lib/twitch-api";
+import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam, percentChange } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Zuschauer" };
 export const dynamic = "force-dynamic";
@@ -42,20 +55,87 @@ export default async function ViewersPage({
     | "first"
     | "name";
   const page = parsePositiveInt(params.page, 1);
+  const range = normalizeTrendRange(params.range);
+  const label = rangeLabel(range);
 
-  const { items, total } = await listViewers({ search, sort, page, pageSize: PAGE_SIZE });
+  const [{ items, total }, trend, returning] = await Promise.all([
+    listViewers({ search, sort, page, pageSize: PAGE_SIZE }),
+    getViewerTrend(range),
+    getReturningViewers(range),
+  ]);
 
   const canViewNotes = hasPermission(session.user.permissions, PERMISSIONS.VIEWERS_NOTES_VIEW);
-  const noteCounts = canViewNotes
-    ? await countNotesForViewers(items.map((viewer) => viewer.userId))
-    : new Map<string, number>();
+  const userIds = items.map((viewer) => viewer.userId);
+
+  const [noteCounts, avatars] = await Promise.all([
+    canViewNotes ? countNotesForViewers(userIds) : Promise.resolve(new Map<string, number>()),
+    getViewerAvatars(userIds),
+  ]);
+
+  const growth = percentChange(trend.current, trend.previous);
+
+  // Filter im Zeitraum-Link erhalten, damit die Tabelle nicht zurückspringt.
+  const filterParams = {
+    search,
+    sort: sort === "messages" ? undefined : sort,
+  };
 
   return (
     <>
-      <PageHeader
-        title="Zuschauer"
-        description="Alle im Chat erfassten Twitch-Nutzer mit ihrer Aktivität."
-      />
+      <PageHeader title="Zuschauer" description="Alle im Chat erfassten Twitch-Nutzer und ihre Aktivität." />
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <ChartCard
+          title="Zuschauerentwicklung"
+          description={`Bekannte Zuschauer insgesamt und Neuzugänge pro Tag · ${label}`}
+          actions={
+            <RangeSelector
+              basePath="/viewers"
+              params={filterParams}
+              options={TREND_RANGES}
+              current={range}
+            />
+          }
+        >
+          <ComposedChart
+            data={trend.points}
+            xKey="bucket"
+            areaSeries={{ key: "total", label: "Zuschauer insgesamt", color: "chart-1", unit: "Gesamt" }}
+            lineSeries={{ key: "value", label: "Neu an diesem Tag", color: "chart-2", unit: "Neu/Tag" }}
+            height={300}
+            xFormat="date"
+            labelFormat="weekday-long"
+            xLabel="Datum"
+            emptyMessage="Keine Zuschauerdaten im gewählten Zeitraum."
+          />
+        </ChartCard>
+
+        <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+          <StatCard
+            label={`Neue Zuschauer (${label})`}
+            value={trend.current}
+            icon={UserPlus}
+            accent="brand"
+            size="large"
+            trend={growth}
+            trendLabel={`Vergleich mit den vorherigen ${label.toLowerCase()}`}
+          />
+          <StatCard
+            label={`Wiederkehrende (${label})`}
+            value={returning}
+            hint="Bereits vorher bekannt, im Zeitraum aktiv"
+            icon={Repeat2}
+            accent="success"
+            size="large"
+          />
+          <StatCard
+            label="Zuschauer insgesamt"
+            value={trend.total}
+            icon={Users}
+            size="large"
+          />
+        </div>
+      </div>
 
       <FilterBar action="/viewers" hasActiveFilters={Boolean(search) || sort !== "messages"}>
         <FilterField label="Suche">
@@ -71,6 +151,9 @@ export default async function ViewersPage({
             ))}
           </Select>
         </FilterField>
+
+        {/* Zeitraum beim Filtern beibehalten */}
+        <input type="hidden" name="range" value={range} />
       </FilterBar>
 
       <Card>
@@ -78,8 +161,8 @@ export default async function ViewersPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nutzer</TableHead>
-                <TableHead>User-ID</TableHead>
+                <TableHead>Zuschauer</TableHead>
+                <TableHead>Twitch-User-ID</TableHead>
                 <TableHead className="text-right">Nachrichten</TableHead>
                 <TableHead>Erstmals gesehen</TableHead>
                 <TableHead>Zuletzt gesehen</TableHead>
@@ -91,24 +174,34 @@ export default async function ViewersPage({
               ) : (
                 items.map((viewer) => {
                   const notes = noteCounts.get(viewer.userId) ?? 0;
+                  const avatar = avatars.get(viewer.userId);
+                  const name = viewer.displayName ?? viewer.userName;
 
                   return (
                     <TableRow key={viewer.userId}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link href={`/viewers/${viewer.userId}`} className="font-medium hover:underline">
-                            {viewer.displayName ?? viewer.userName}
-                          </Link>
-                          {notes > 0 && (
-                            <Badge variant="info" title={`${notes} Notiz(en)`}>
-                              <StickyNote className="size-3" />
-                              {notes}
-                            </Badge>
-                          )}
+                        <div className="flex items-center gap-2.5">
+                          <ViewerAvatar name={name} imageUrl={avatar?.profileImageUrl} size="md" />
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <Link href={`/viewers/${viewer.userId}`} className="truncate font-medium hover:underline">
+                                {name}
+                              </Link>
+                              {notes > 0 && (
+                                <Badge variant="info" title={`${notes} Notiz(en)`}>
+                                  <StickyNote className="size-3" />
+                                  {notes}
+                                </Badge>
+                              )}
+                            </div>
+                            {viewer.displayName && viewer.displayName !== viewer.userName && (
+                              <span className="block truncate text-xs text-[var(--color-muted-foreground)]">
+                                @{viewer.userName}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {viewer.displayName && viewer.displayName !== viewer.userName && (
-                          <span className="block text-xs text-[var(--color-muted-foreground)]">{viewer.userName}</span>
-                        )}
                       </TableCell>
                       <TableCell className="font-mono text-xs text-[var(--color-muted-foreground)]">
                         {viewer.userId}
@@ -129,7 +222,7 @@ export default async function ViewersPage({
 
           <Pagination
             basePath="/viewers"
-            params={{ search, sort: sort === "messages" ? undefined : sort }}
+            params={{ ...filterParams, range }}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}

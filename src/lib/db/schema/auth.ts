@@ -167,6 +167,33 @@ export const adminViewerNotes = mysqlTable(
   ],
 );
 
+/**
+ * Zwischenspeicher fuer Profildaten aus der Twitch-Helix-API.
+ * Vermeidet, dass bei jedem Seitenaufruf erneut angefragt wird.
+ */
+export const adminViewerProfiles = mysqlTable(
+  "admin_viewer_profiles",
+  {
+    /** Twitch-User-ID (entspricht users.user_id). */
+    userId: varchar("user_id", { length: 32 }).notNull(),
+    login: varchar("login", { length: 64 }),
+    displayName: varchar("display_name", { length: 64 }),
+    profileImageUrl: varchar("profile_image_url", { length: 512 }),
+    offlineImageUrl: varchar("offline_image_url", { length: 512 }),
+    description: text("description"),
+    broadcasterType: varchar("broadcaster_type", { length: 24 }),
+    twitchCreatedAt: datetime("twitch_created_at"),
+    /** Zeitpunkt des letzten erfolgreichen Abrufs. */
+    fetchedAt: datetime("fetched_at").notNull(),
+    /** true, wenn die API den Account nicht mehr kennt (geloescht oder gesperrt). */
+    notFound: boolean("not_found").notNull().default(false),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId] }),
+    index("idx_viewer_profiles_fetched").on(table.fetchedAt),
+  ],
+);
+
 export const adminAuditLog = mysqlTable(
   "admin_audit_log",
   {
@@ -237,3 +264,4 @@ export type AdminSession = typeof adminSessions.$inferSelect;
 export type AdminAuditEntry = typeof adminAuditLog.$inferSelect;
 export type ViewerNote = typeof adminViewerNotes.$inferSelect;
 export type NewViewerNote = typeof adminViewerNotes.$inferInsert;
+export type ViewerProfile = typeof adminViewerProfiles.$inferSelect;

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Gavel, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { ListTrendHeader } from "@/components/list-trend-header";
 import { ModerationBadge } from "@/components/twitch-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,7 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { listModerationActionTypes, listModerationActions } from "@/lib/queries/twitch";
+import { TREND_RANGES, getModerationTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
 import { formatDuration, moderationActionLabel } from "@/lib/twitch";
 import { formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
@@ -33,11 +37,14 @@ export default async function ModerationPage({
   const from = parseSearchParam(params.from);
   const to = parseSearchParam(params.to);
   const page = parsePositiveInt(params.page, 1);
+  const range = normalizeTrendRange(params.range);
+  const label = rangeLabel(range);
 
-  const [channels, actionTypes, { items, total }] = await Promise.all([
+  const [channels, actionTypes, { items, total }, trend] = await Promise.all([
     listChannelOptions(),
     listModerationActionTypes(),
     listModerationActions({ channelUuid, action, target, from, to, page, pageSize: PAGE_SIZE }),
+    getModerationTrend(range),
   ]);
 
   const activeFilters = { channel: channelUuid, action, target, from, to };
@@ -47,7 +54,28 @@ export default async function ModerationPage({
     <>
       <PageHeader
         title="Moderation"
-        description="Bans, Timeouts, gelöschte Nachrichten und weitere Moderationsaktionen."
+        description="Banns, Timeouts, gelöschte Nachrichten und weitere Moderationsaktionen."
+      />
+
+      <ListTrendHeader
+        basePath="/moderation"
+        params={activeFilters}
+        rangeOptions={TREND_RANGES}
+        range={range}
+        rangeLabel={label}
+        title="Moderationsaufkommen"
+        description="Durchgeführte Maßnahmen pro Tag"
+        points={trend.points}
+        seriesLabel="Aktionen"
+        seriesColor="chart-4"
+        currentValue={trend.current}
+        previousValue={trend.previous}
+        totalValue={trend.total}
+        currentLabel={`Aktionen (${label})`}
+        totalLabel="Aktionen insgesamt"
+        icon={ShieldAlert}
+        totalIcon={Gavel}
+        accent="destructive"
       />
 
       <FilterBar action="/moderation" hasActiveFilters={hasActiveFilters}>
@@ -84,6 +112,8 @@ export default async function ModerationPage({
         <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
           <Input type="date" name="to" defaultValue={to ?? ""} />
         </FilterField>
+
+        <input type="hidden" name="range" value={range} />
       </FilterBar>
 
       <Card>
@@ -113,7 +143,15 @@ export default async function ModerationPage({
                       <ModerationBadge action={entry.action} />
                     </TableCell>
                     <TableCell className="text-xs text-[var(--color-muted-foreground)]">{entry.channelName}</TableCell>
-                    <TableCell className="max-w-40 truncate font-medium">{entry.targetUserName ?? "—"}</TableCell>
+                    <TableCell className="max-w-40 truncate font-medium">
+                      {entry.targetUserId ? (
+                        <Link href={`/viewers/${entry.targetUserId}`} className="hover:underline">
+                          {entry.targetUserName ?? entry.targetUserId}
+                        </Link>
+                      ) : (
+                        (entry.targetUserName ?? "—")
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{formatDuration(entry.durationSeconds)}</TableCell>
                     <TableCell className="max-w-64 truncate text-sm">{entry.reason ?? "—"}</TableCell>
                     <TableCell className="max-w-md truncate text-sm text-[var(--color-muted-foreground)]">
@@ -125,7 +163,13 @@ export default async function ModerationPage({
             </TableBody>
           </Table>
 
-          <Pagination basePath="/moderation" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
+          <Pagination
+            basePath="/moderation"
+            params={{ ...activeFilters, range }}
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+          />
         </CardContent>
       </Card>
     </>

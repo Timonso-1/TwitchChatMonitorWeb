@@ -159,6 +159,7 @@ export interface EventListItem {
   id: number;
   channelName: string;
   eventType: string;
+  userId: string | null;
   userName: string | null;
   giftedByName: string | null;
   subTier: string | null;
@@ -190,6 +191,7 @@ export async function listEvents(filters: EventFilters): Promise<{ items: EventL
       id: events.id,
       channelName: events.channelName,
       eventType: events.eventType,
+      userId: events.userId,
       userName: events.userName,
       giftedByName: events.giftedByName,
       subTier: events.subTier,
@@ -236,6 +238,7 @@ export interface ModerationListItem {
   id: number;
   channelName: string;
   action: string;
+  targetUserId: string | null;
   targetUserName: string | null;
   durationSeconds: number | null;
   reason: string | null;
@@ -267,6 +270,7 @@ export async function listModerationActions(filters: ModerationFilters): Promise
       id: moderationActions.id,
       channelName: moderationActions.channelName,
       action: moderationActions.action,
+      targetUserId: moderationActions.targetUserId,
       targetUserName: moderationActions.targetUserName,
       durationSeconds: moderationActions.durationSeconds,
       reason: moderationActions.reason,

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download } from "lucide-react";
+import { Download, MessageSquare, MessagesSquare } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { ListTrendHeader } from "@/components/list-trend-header";
 import { ChatRoleBadges } from "@/components/twitch-badges";
+import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +17,8 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { listMessages } from "@/lib/queries/twitch";
+import { TREND_RANGES, getMessageTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
+import { getViewerAvatars } from "@/lib/twitch-api";
 import { buildQueryString, formatDateTime, formatNumber, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Nachrichten" };
@@ -52,11 +56,16 @@ export default async function MessagesPage({
     | "broadcaster"
     | "first";
   const page = parsePositiveInt(params.page, 1);
+  const range = normalizeTrendRange(params.range);
+  const label = rangeLabel(range);
 
-  const [channels, { items, total }] = await Promise.all([
+  const [channels, { items, total }, trend] = await Promise.all([
     listChannelOptions(),
     listMessages({ channelUuid, user, content, role, from, to, page, pageSize: PAGE_SIZE }),
+    getMessageTrend(range),
   ]);
+
+  const avatars = await getViewerAvatars(items.map((message) => message.userId));
 
   const activeFilters = { channel: channelUuid, user, content, role: role === "all" ? undefined : role, from, to };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
@@ -77,6 +86,26 @@ export default async function MessagesPage({
             </Button>
           ) : undefined
         }
+      />
+
+      <ListTrendHeader
+        basePath="/messages"
+        params={activeFilters}
+        rangeOptions={TREND_RANGES}
+        range={range}
+        rangeLabel={label}
+        title="Nachrichtenaufkommen"
+        description="Aufgezeichnete Chatnachrichten pro Tag"
+        points={trend.points}
+        seriesLabel="Nachrichten"
+        seriesColor="chart-2"
+        currentValue={trend.current}
+        previousValue={trend.previous}
+        totalValue={trend.total}
+        currentLabel={`Nachrichten (${label})`}
+        totalLabel="Nachrichten insgesamt"
+        icon={MessageSquare}
+        totalIcon={MessagesSquare}
       />
 
       <FilterBar action="/messages" hasActiveFilters={hasActiveFilters}>
@@ -116,6 +145,9 @@ export default async function MessagesPage({
         <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
           <Input type="date" name="to" defaultValue={to ?? ""} />
         </FilterField>
+
+        {/* Zeitraum des Diagramms beim Filtern beibehalten */}
+        <input type="hidden" name="range" value={range} />
       </FilterBar>
 
       <Card>
@@ -142,20 +174,29 @@ export default async function MessagesPage({
                       {message.channelName}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap items-center gap-1">
-                        <Link
-                          href={`/viewers/${message.userId}`}
-                          className="max-w-32 truncate font-medium hover:underline"
-                          style={message.color ? { color: message.color } : undefined}
-                        >
-                          {message.displayName ?? message.userName}
-                        </Link>
-                        <ChatRoleBadges
-                          isBroadcaster={message.isBroadcaster}
-                          isMod={message.isMod}
-                          isVip={message.isVip}
-                          isSubscriber={message.isSubscriber}
+                      <div className="flex items-center gap-2">
+                        <ViewerAvatar
+                          name={message.displayName ?? message.userName}
+                          imageUrl={avatars.get(message.userId)?.profileImageUrl}
+                          color={message.color}
+                          size="sm"
                         />
+
+                        <div className="flex min-w-0 flex-wrap items-center gap-1">
+                          <Link
+                            href={`/viewers/${message.userId}`}
+                            className="max-w-28 truncate font-medium hover:underline"
+                            style={message.color ? { color: message.color } : undefined}
+                          >
+                            {message.displayName ?? message.userName}
+                          </Link>
+                          <ChatRoleBadges
+                            isBroadcaster={message.isBroadcaster}
+                            isMod={message.isMod}
+                            isVip={message.isVip}
+                            isSubscriber={message.isSubscriber}
+                          />
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="max-w-xl">
@@ -175,7 +216,7 @@ export default async function MessagesPage({
 
           <Pagination
             basePath="/messages"
-            params={activeFilters}
+            params={{ ...activeFilters, range }}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}

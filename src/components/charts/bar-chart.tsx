@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AxisCaption,
   CHART_COLOR_VARS,
   ChartEmpty,
   ChartLegend,
@@ -37,6 +38,10 @@ interface BarChartProps<T extends Record<string, unknown>> {
   emptyMessage?: string;
   /** Faerbt jeden Balken einzeln – nur bei genau einer Serie sinnvoll. */
   colorByIndex?: ChartColor[];
+  /** Beschriftung unter dem Diagramm. */
+  xLabel?: string;
+  /** Breite der Kategorie-Achse bei waagerechten Balken. */
+  categoryWidth?: number;
 }
 
 export function BarChart<T extends Record<string, unknown>>({
@@ -50,6 +55,8 @@ export function BarChart<T extends Record<string, unknown>>({
   valueFormat,
   emptyMessage,
   colorByIndex,
+  xLabel,
+  categoryWidth = 120,
 }: BarChartProps<T>) {
   const mounted = useMounted();
 
@@ -74,7 +81,7 @@ export function BarChart<T extends Record<string, unknown>>({
                 dataKey={xKey}
                 tickLine={false}
                 axisLine={false}
-                width={110}
+                width={categoryWidth}
                 tickFormatter={(value) => applyAxisFormat(value, xFormat)}
               />
             </>
@@ -115,7 +122,8 @@ export function BarChart<T extends Record<string, unknown>>({
         </RechartsBarChart>
       </ResponsiveContainer>
 
-      <ChartLegend series={series} />
+      <ChartLegend series={series} always={Boolean(series[0]?.unit)} />
+      {xLabel && <AxisCaption>{xLabel}</AxisCaption>}
     </div>
   );
 }

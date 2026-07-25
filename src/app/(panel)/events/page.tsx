@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Sparkles, Zap } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { ListTrendHeader } from "@/components/list-trend-header";
 import { EventBadge, SubTierBadge } from "@/components/twitch-badges";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,7 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { listEventTypes, listEvents } from "@/lib/queries/twitch";
+import { TREND_RANGES, getEventTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
 import { eventDetailText, eventTypeLabel } from "@/lib/twitch";
 import { formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
@@ -33,11 +37,14 @@ export default async function EventsPage({
   const from = parseSearchParam(params.from);
   const to = parseSearchParam(params.to);
   const page = parsePositiveInt(params.page, 1);
+  const range = normalizeTrendRange(params.range);
+  const label = rangeLabel(range);
 
-  const [channels, eventTypes, { items, total }] = await Promise.all([
+  const [channels, eventTypes, { items, total }, trend] = await Promise.all([
     listChannelOptions(),
     listEventTypes(),
     listEvents({ channelUuid, eventType, user, from, to, page, pageSize: PAGE_SIZE }),
+    getEventTrend(range),
   ]);
 
   const activeFilters = { channel: channelUuid, type: eventType, user, from, to };
@@ -46,6 +53,27 @@ export default async function EventsPage({
   return (
     <>
       <PageHeader title="Events" description="Subs, Gifts, Raids, Cheers und weitere Channel-Ereignisse." />
+
+      <ListTrendHeader
+        basePath="/events"
+        params={activeFilters}
+        rangeOptions={TREND_RANGES}
+        range={range}
+        rangeLabel={label}
+        title="Event-Aufkommen"
+        description="Aufgezeichnete Channel-Ereignisse pro Tag"
+        points={trend.points}
+        seriesLabel="Events"
+        seriesColor="chart-4"
+        currentValue={trend.current}
+        previousValue={trend.previous}
+        totalValue={trend.total}
+        currentLabel={`Events (${label})`}
+        totalLabel="Events insgesamt"
+        icon={Zap}
+        totalIcon={Sparkles}
+        accent="warning"
+      />
 
       <FilterBar action="/events" hasActiveFilters={hasActiveFilters}>
         <FilterField label="Channel">
@@ -81,6 +109,8 @@ export default async function EventsPage({
         <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
           <Input type="date" name="to" defaultValue={to ?? ""} />
         </FilterField>
+
+        <input type="hidden" name="range" value={range} />
       </FilterBar>
 
       <Card>
@@ -109,7 +139,15 @@ export default async function EventsPage({
                       <EventBadge type={event.eventType} />
                     </TableCell>
                     <TableCell className="text-xs text-[var(--color-muted-foreground)]">{event.channelName}</TableCell>
-                    <TableCell className="max-w-40 truncate font-medium">{event.userName ?? "—"}</TableCell>
+                    <TableCell className="max-w-40 truncate font-medium">
+                      {event.userId ? (
+                        <Link href={`/viewers/${event.userId}`} className="hover:underline">
+                          {event.userName ?? event.userId}
+                        </Link>
+                      ) : (
+                        (event.userName ?? "—")
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <SubTierBadge tier={event.subTier} />
@@ -130,7 +168,13 @@ export default async function EventsPage({
             </TableBody>
           </Table>
 
-          <Pagination basePath="/events" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
+          <Pagination
+            basePath="/events"
+            params={{ ...activeFilters, range }}
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+          />
         </CardContent>
       </Card>
     </>

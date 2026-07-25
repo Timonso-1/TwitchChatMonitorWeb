@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AxisCaption,
   CHART_COLOR_VARS,
   ChartEmpty,
   ChartLegend,
@@ -41,6 +42,8 @@ interface ComposedChartProps<T extends Record<string, unknown>> {
    * bei denen sonst die gesamte Kurve flach wirkt.
    */
   areaAxisFromMin?: boolean;
+  /** Beschriftung unter der X-Achse. */
+  xLabel?: string;
 }
 
 /**
@@ -58,6 +61,7 @@ export function ComposedChart<T extends Record<string, unknown>>({
   valueFormat,
   emptyMessage,
   areaAxisFromMin = true,
+  xLabel,
 }: ComposedChartProps<T>) {
   const mounted = useMounted();
   const gradientId = React.useId();
@@ -110,9 +114,16 @@ export function ComposedChart<T extends Record<string, unknown>>({
             yAxisId="area"
             tickLine={false}
             axisLine={false}
-            width={52}
+            width={56}
             domain={areaDomain}
             tickFormatter={(value) => formatCompact(value)}
+            label={{
+              value: areaSeries.unit ?? areaSeries.label,
+              angle: -90,
+              position: "insideLeft",
+              offset: 14,
+              style: { fill: "var(--color-subtle)", fontSize: 11, textAnchor: "middle" },
+            }}
           />
 
           {lineSeries && (
@@ -121,8 +132,15 @@ export function ComposedChart<T extends Record<string, unknown>>({
               orientation="right"
               tickLine={false}
               axisLine={false}
-              width={44}
+              width={52}
               tickFormatter={(value) => formatCompact(value)}
+              label={{
+                value: lineSeries.unit ?? lineSeries.label,
+                angle: 90,
+                position: "insideRight",
+                offset: 14,
+                style: { fill: "var(--color-subtle)", fontSize: 11, textAnchor: "middle" },
+              }}
             />
           )}
 
@@ -155,7 +173,8 @@ export function ComposedChart<T extends Record<string, unknown>>({
         </RechartsComposedChart>
       </ResponsiveContainer>
 
-      <ChartLegend series={legend} />
+      <ChartLegend series={legend} always />
+      {xLabel && <AxisCaption>{xLabel}</AxisCaption>}
     </div>
   );
 }
