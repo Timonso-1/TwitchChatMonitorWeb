@@ -26,7 +26,7 @@ import {
   normalizeTrendRange,
   rangeLabel,
 } from "@/lib/queries/trends";
-import { getViewerAvatars } from "@/lib/twitch-api";
+import { getCachedViewerAvatars } from "@/lib/twitch-api";
 import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam, percentChange } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Zuschauer" };
@@ -70,7 +70,7 @@ export default async function ViewersPage({
 
   const [noteCounts, avatars] = await Promise.all([
     canViewNotes ? countNotesForViewers(userIds) : Promise.resolve(new Map<string, number>()),
-    getViewerAvatars(userIds),
+    getCachedViewerAvatars(userIds),
   ]);
 
   // Ohne vollstaendige Vorperiode waere ein Prozentwert irrefuehrend –
@@ -216,14 +216,14 @@ export default async function ViewersPage({
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="text-meta-mono">
                         {viewer.userId}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatNumber(viewer.messageCount)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="whitespace-nowrap text-meta">
                         {formatDateTime(viewer.firstSeenAt)}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="whitespace-nowrap text-meta">
                         {formatRelative(viewer.lastSeenAt)}
                       </TableCell>
                     </TableRow>

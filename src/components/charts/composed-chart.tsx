@@ -25,7 +25,8 @@ import {
 } from "./chart-primitives";
 import { formatCompact } from "@/lib/utils";
 
-interface ComposedChartProps<T extends Record<string, unknown>> {
+/** Siehe AreaChart: `object` statt `Record`, damit auch Interfaces passen. */
+interface ComposedChartProps<T extends object> {
   data: T[];
   xKey: string;
   /** Als Flaeche dargestellte Serie – meist der kumulierte Verlauf. */
@@ -50,7 +51,7 @@ interface ComposedChartProps<T extends Record<string, unknown>> {
  * Kombiniert Flaeche und Linie mit getrennten Y-Achsen –
  * z. B. Gesamtbestand gegen taeglichen Zuwachs.
  */
-export function ComposedChart<T extends Record<string, unknown>>({
+export function ComposedChart<T extends object>({
   data,
   xKey,
   areaSeries,
@@ -69,8 +70,9 @@ export function ComposedChart<T extends Record<string, unknown>>({
   const areaDomain = React.useMemo<[number | "auto", number | "auto"]>(() => {
     if (!areaAxisFromMin || data.length === 0) return [0, "auto"];
 
+    // Der Schlüssel kommt als String herein – deshalb hier ein gezielter Cast.
     const values = data
-      .map((row) => Number(row[areaSeries.key]))
+      .map((row) => Number((row as Record<string, unknown>)[areaSeries.key]))
       .filter((value) => Number.isFinite(value));
 
     if (values.length === 0) return [0, "auto"];

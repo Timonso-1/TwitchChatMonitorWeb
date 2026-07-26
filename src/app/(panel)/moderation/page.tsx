@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Gavel, ShieldAlert } from "lucide-react";
+import { Download, Gavel, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
@@ -10,13 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/guard";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { listModerationActionTypes, listModerationActions } from "@/lib/queries/twitch";
 import { TREND_RANGES, getModerationTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
 import { formatDuration, moderationActionLabel } from "@/lib/twitch";
-import { formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
+import { buildQueryString, formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Moderation" };
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export default async function ModerationPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requirePermission(PERMISSIONS.MODERATION_VIEW);
+  const session = await requirePermission(PERMISSIONS.MODERATION_VIEW);
   const params = await searchParams;
 
   const channelUuid = parseSearchParam(params.channel);
@@ -49,12 +50,23 @@ export default async function ModerationPage({
 
   const activeFilters = { channel: channelUuid, action, target, from, to };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
+  const canExport = hasPermission(session.user.permissions, PERMISSIONS.MODERATION_EXPORT);
 
   return (
     <>
       <PageHeader
         title="Moderation"
         description="Banns, Timeouts, gelöschte Nachrichten und weitere Moderationsaktionen."
+        actions={
+          canExport ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/moderation/export${buildQueryString(activeFilters)}`} prefetch={false}>
+                <Download />
+                CSV-Export
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
 
       <ListTrendHeader
@@ -137,13 +149,13 @@ export default async function ModerationPage({
               ) : (
                 items.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                    <TableCell className="whitespace-nowrap text-meta">
                       {formatDateTime(entry.occurredAt)}
                     </TableCell>
                     <TableCell>
                       <ModerationBadge action={entry.action} />
                     </TableCell>
-                    <TableCell className="text-xs text-[var(--color-muted-foreground)]">{entry.channelName}</TableCell>
+                    <TableCell className="text-meta">{entry.channelName}</TableCell>
                     <TableCell className="max-w-40 truncate font-medium">
                       {entry.targetUserId ? (
                         <Link href={`/viewers/${entry.targetUserId}`} className="hover:underline">

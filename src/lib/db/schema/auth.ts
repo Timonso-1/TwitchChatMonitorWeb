@@ -203,6 +203,38 @@ export const adminViewerProfiles = mysqlTable(
   ],
 );
 
+/**
+ * Beobachtete Begriffe. Nachrichten, die darauf passen, werden im Panel
+ * hervorgehoben und in der Trefferliste gesammelt.
+ */
+export const adminWatchTerms = mysqlTable(
+  "admin_watch_terms",
+  {
+    id: bigint("id", { mode: "number" }).autoincrement().notNull(),
+    /** Der gesuchte Begriff bzw. das Muster. */
+    term: varchar("term", { length: 255 }).notNull(),
+    /** "contains" | "word" | "regex" */
+    matchType: varchar("match_type", { length: 16 }).notNull().default("contains"),
+    /** "info" | "warning" | "critical" */
+    severity: varchar("severity", { length: 16 }).notNull().default("warning"),
+    caseSensitive: boolean("case_sensitive").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    /** Optionale Begründung für das Team. */
+    note: varchar("note", { length: 255 }),
+    /** Nur diesen Channel überwachen; leer = alle. */
+    channelUuid: char("channel_uuid", { length: 36 }),
+    createdByUuid: char("created_by_uuid", { length: 36 }),
+    createdByName: varchar("created_by_name", { length: 96 }),
+    createdAt: datetime("created_at").notNull(),
+    updatedAt: datetime("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.id] }),
+    index("idx_watch_terms_active").on(table.active),
+    uniqueIndex("uq_watch_terms_term").on(table.term, table.matchType, table.channelUuid),
+  ],
+);
+
 export const adminAuditLog = mysqlTable(
   "admin_audit_log",
   {
@@ -274,3 +306,5 @@ export type AdminAuditEntry = typeof adminAuditLog.$inferSelect;
 export type ViewerNote = typeof adminViewerNotes.$inferSelect;
 export type NewViewerNote = typeof adminViewerNotes.$inferInsert;
 export type ViewerProfile = typeof adminViewerProfiles.$inferSelect;
+export type WatchTerm = typeof adminWatchTerms.$inferSelect;
+export type NewWatchTerm = typeof adminWatchTerms.$inferInsert;

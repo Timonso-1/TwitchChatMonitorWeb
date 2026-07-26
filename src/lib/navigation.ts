@@ -31,9 +31,11 @@ export const NAVIGATION: NavSection[] = [
   {
     label: "Chat",
     items: [
+      { href: "/live", label: "Live-Chat", icon: "Radar", permission: PERMISSIONS.CHAT_LIVE },
       { href: "/channels", label: "Channels", icon: "Radio", permission: PERMISSIONS.CHANNELS_VIEW },
       { href: "/messages", label: "Nachrichten", icon: "MessageSquare", permission: PERMISSIONS.MESSAGES_VIEW },
       { href: "/events", label: "Events", icon: "Zap", permission: PERMISSIONS.EVENTS_VIEW },
+      { href: "/emotes", label: "Emotes", icon: "Smile", permission: PERMISSIONS.MESSAGES_VIEW },
     ],
   },
   {
@@ -41,6 +43,13 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { href: "/viewers", label: "Zuschauer", icon: "Users", permission: PERMISSIONS.VIEWERS_VIEW },
       { href: "/moderation", label: "Moderation", icon: "ShieldAlert", permission: PERMISSIONS.MODERATION_VIEW },
+      { href: "/watchlist", label: "Wortfilter", icon: "Radar", permission: PERMISSIONS.WATCHLIST_VIEW },
+      {
+        href: "/watchboard",
+        label: "Beobachtungsliste",
+        icon: "Eye",
+        permission: PERMISSIONS.VIEWERS_NOTES_VIEW,
+      },
     ],
   },
   {

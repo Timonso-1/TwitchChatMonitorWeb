@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, like, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { events, messages, moderationActions, viewers } from "@/lib/db/schema";
 
@@ -27,12 +27,16 @@ export interface MessageFilters {
 
 export interface MessageListItem {
   id: number;
+  messageId: string;
   channelName: string;
   userId: string;
   userName: string;
   displayName: string | null;
   color: string | null;
   content: string;
+  emotes: string | null;
+  badgeInfo: string | null;
+  replyToMessageId: string | null;
   bits: number;
   isMod: boolean;
   isSubscriber: boolean;
@@ -95,12 +99,16 @@ export async function listMessages(filters: MessageFilters): Promise<{
   const items = await db
     .select({
       id: messages.id,
+      messageId: messages.messageId,
       channelName: messages.channelName,
       userId: messages.userId,
       userName: messages.userName,
       displayName: messages.displayName,
       color: messages.color,
       content: messages.content,
+      emotes: messages.emotes,
+      badgeInfo: messages.badgeInfo,
+      replyToMessageId: messages.replyToMessageId,
       bits: messages.bits,
       isMod: messages.isMod,
       isSubscriber: messages.isSubscriber,
@@ -117,6 +125,142 @@ export async function listMessages(filters: MessageFilters): Promise<{
     .offset((filters.page - 1) * filters.pageSize);
 
   return { items, total: totalRow?.value ?? 0 };
+}
+
+export interface MessageContext {
+  /** Nachrichten-IDs, zu denen eine Loeschung vorliegt. */
+  deletedIds: Set<string>;
+  /** Ursprungsnachrichten zu Antworten: message_id → Vorschau. */
+  replyTargets: Map<string, { userName: string; content: string }>;
+}
+
+/**
+ * Ergaenzt eine Nachrichtenliste um Zusatzinformationen aus anderen Tabellen:
+ * welche Nachrichten geloescht wurden und worauf Antworten sich beziehen.
+ *
+ * Bewusst als separate Abfrage statt als JOIN – so bleibt die Hauptabfrage
+ * schlank und die Zusatzinfos lassen sich bei Bedarf weglassen.
+ */
+export async function getMessageContext(items: MessageListItem[]): Promise<MessageContext> {
+  const messageIds = items.map((item) => item.messageId).filter(Boolean);
+  const replyIds = items.map((item) => item.replyToMessageId).filter((id): id is string => Boolean(id));
+
+  const [deletions, targets] = await Promise.all([
+    messageIds.length > 0
+      ? db
+          .select({ deletedMessageId: moderationActions.deletedMessageId })
+          .from(moderationActions)
+          .where(inArray(moderationActions.deletedMessageId, messageIds))
+      : Promise.resolve([]),
+
+    replyIds.length > 0
+      ? db
+          .select({
+            messageId: messages.messageId,
+            userName: messages.userName,
+            displayName: messages.displayName,
+            content: messages.content,
+          })
+          .from(messages)
+          .where(inArray(messages.messageId, replyIds))
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    deletedIds: new Set(deletions.map((row) => row.deletedMessageId).filter((id): id is string => Boolean(id))),
+    replyTargets: new Map(
+      targets.map((row) => [
+        row.messageId,
+        { userName: row.displayName ?? row.userName, content: row.content },
+      ]),
+    ),
+  };
+}
+
+export interface ConversationEntry {
+  id: number;
+  messageId: string;
+  userId: string;
+  userName: string;
+  displayName: string | null;
+  color: string | null;
+  content: string;
+  receivedAt: Date;
+  /** Ist das die Ursprungsnachricht der Kette? */
+  isRoot: boolean;
+}
+
+/**
+ * Laedt eine Antwortkette: die Ursprungsnachricht und alle direkten Antworten.
+ * Twitch verweist immer auf die urspruengliche Nachricht, nicht auf die
+ * jeweils vorherige Antwort – die Kette ist also flach.
+ */
+export async function getConversation(messageId: string): Promise<ConversationEntry[]> {
+  const [root] = await db
+    .select({
+      id: messages.id,
+      messageId: messages.messageId,
+      userId: messages.userId,
+      userName: messages.userName,
+      displayName: messages.displayName,
+      color: messages.color,
+      content: messages.content,
+      receivedAt: messages.receivedAt,
+      replyToMessageId: messages.replyToMessageId,
+    })
+    .from(messages)
+    .where(eq(messages.messageId, messageId))
+    .limit(1);
+
+  if (!root) return [];
+
+  // Wenn die Nachricht selbst eine Antwort ist, wird die Wurzel gesucht.
+  const rootId = root.replyToMessageId ?? root.messageId;
+
+  const [rootMessage, replies] = await Promise.all([
+    root.replyToMessageId
+      ? db
+          .select({
+            id: messages.id,
+            messageId: messages.messageId,
+            userId: messages.userId,
+            userName: messages.userName,
+            displayName: messages.displayName,
+            color: messages.color,
+            content: messages.content,
+            receivedAt: messages.receivedAt,
+          })
+          .from(messages)
+          .where(eq(messages.messageId, rootId))
+          .limit(1)
+      : Promise.resolve([root]),
+
+    db
+      .select({
+        id: messages.id,
+        messageId: messages.messageId,
+        userId: messages.userId,
+        userName: messages.userName,
+        displayName: messages.displayName,
+        color: messages.color,
+        content: messages.content,
+        receivedAt: messages.receivedAt,
+      })
+      .from(messages)
+      .where(eq(messages.replyToMessageId, rootId))
+      .orderBy(messages.receivedAt)
+      .limit(50),
+  ]);
+
+  const entries: ConversationEntry[] = [];
+
+  if (rootMessage[0]) {
+    entries.push({ ...rootMessage[0], isRoot: true });
+  }
+
+  entries.push(...replies.map((reply) => ({ ...reply, isRoot: false })));
+
+  return entries;
 }
 
 /** Liefert Nachrichten fuer den CSV-Export (ohne Pagination, mit hartem Limit). */

@@ -6,6 +6,7 @@ import { AreaChart } from "@/components/charts";
 import { ChatName } from "@/components/chat-name";
 import { DistributionChart } from "@/components/distribution-chart";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { MessageContent } from "@/components/message-content";
 import { StatCard } from "@/components/stat-card";
 import { ChatRoleBadges, EventBadge, ModerationBadge, SubTierBadge } from "@/components/twitch-badges";
 import { TwitchProfileLink } from "@/components/twitch-profile-link";
@@ -22,6 +23,7 @@ import { ViewerTabsNav, normalizeViewerTab, type ViewerTabKey } from "./viewer-t
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import {
+  getSubscriptionInfo,
   getViewerActivity,
   getViewerChannelOptions,
   getViewerEventsPage,
@@ -31,7 +33,10 @@ import {
   getViewerProfile,
   getViewerWeekdayDistribution,
 } from "@/lib/queries/viewer-profile";
+import { getMessageContext } from "@/lib/queries/twitch";
+import { getViewerEmoteSummary } from "@/lib/queries/emotes";
 import { eventDetailText, formatDuration, subTierLabel } from "@/lib/twitch";
+import { emoteImageUrl } from "@/lib/twitch-tags";
 import { getViewerAvatar } from "@/lib/twitch-api";
 import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
@@ -105,9 +110,10 @@ export default async function ViewerProfilePage({
 
   const hasMessageFilters = Boolean(filterChannel || filterContent || filterFrom || filterTo || filterBits);
 
-  const [profile, avatar] = await Promise.all([
+  const [profile, avatar, subscription] = await Promise.all([
     getViewerProfile(userId, { includeNotes: canViewNotes, skipDetailLists: true }),
     getViewerAvatar(userId),
+    getSubscriptionInfo(userId),
   ]);
 
   if (!profile) notFound();
@@ -129,6 +135,20 @@ export default async function ViewerProfilePage({
           getViewerChannelOptions(userId),
         ])
       : [null, []];
+
+  // Löschungen und Antwortbezüge nur laden, wenn Nachrichten sichtbar sind.
+  const messageContext = messagesPage
+    ? await getMessageContext(
+        messagesPage.items.map((message) => ({
+          ...message,
+          userId,
+          userName: profile?.userName ?? "",
+          displayName: profile?.displayName ?? null,
+        })),
+      )
+    : null;
+
+  const emoteSummary = tab === "overview" && canSeeMessages ? await getViewerEmoteSummary(userId) : null;
 
   const eventsPage =
     tab === "events" && canSeeEvents ? await getViewerEventsPage(userId, page, DETAIL_PAGE_SIZE) : null;
@@ -310,8 +330,22 @@ export default async function ViewerProfilePage({
                 <CardField label="Höchste Abo-Stufe">
                   {profile.highestSubTier ? subTierLabel(profile.highestSubTier) : "Kein Abo bekannt"}
                 </CardField>
-                <CardField label="Längste Abo-Dauer">
-                  {profile.subMonthsMax ? `${formatNumber(profile.subMonthsMax)} Monate` : "—"}
+                <CardField label="Abo-Dauer">
+                  {subscription ? (
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      {formatNumber(subscription.maxMonths)} Monate
+                      {subscription.isFounder && <Badge variant="primary">Gründer</Badge>}
+                    </span>
+                  ) : profile.subMonthsMax ? (
+                    `${formatNumber(profile.subMonthsMax)} Monate`
+                  ) : (
+                    "—"
+                  )}
+                  {subscription && (
+                    <span className="block text-xs text-[var(--color-subtle)]">
+                      Laut Abzeichen, bestätigt {formatRelative(subscription.lastSeenAt)}
+                    </span>
+                  )}
                 </CardField>
                 <CardField label="Twitch-Kanal">
                   <TwitchProfileLink login={profile.userName} withLabel />
@@ -319,6 +353,42 @@ export default async function ViewerProfilePage({
               </CardContent>
             </Card>
           </div>
+
+          {emoteSummary && emoteSummary.topEmotes.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Meistgenutzte Emotes</CardTitle>
+                <CardDescription>
+                  Aus {formatNumber(emoteSummary.scanned)} Nachrichten mit Emotes.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {emoteSummary.topEmotes.map((emote) => (
+                    <span
+                      key={emote.id}
+                      title={`${emote.name} · ${formatNumber(emote.uses)}× verwendet`}
+                      className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={emoteImageUrl(emote.id, "1.0")}
+                        alt={emote.name}
+                        width={22}
+                        height={22}
+                        loading="lazy"
+                        className="size-[22px] object-contain"
+                      />
+                      <span className="text-sm">{emote.name}</span>
+                      <span className="text-xs tabular-nums text-[var(--color-subtle)]">
+                        {formatNumber(emote.uses)}×
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -426,20 +496,27 @@ export default async function ViewerProfilePage({
                 ) : (
                   messagesPage.items.map((message) => (
                     <TableRow key={message.id}>
-                      <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="whitespace-nowrap text-meta">
                         {formatDateTime(message.receivedAt)}
                       </TableCell>
-                      <TableCell className="text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="text-meta">
                         {message.channelName}
                       </TableCell>
                       <TableCell className="max-w-xl">
-                        <span className={message.isAction ? "italic text-[var(--color-brand)]" : undefined}>
-                          {message.content}
-                        </span>
-                        <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
-                          {message.bits > 0 && <Badge variant="success">{formatNumber(message.bits)} Bits</Badge>}
-                          {message.isFirstMessage && <Badge variant="warning">Erste Nachricht</Badge>}
-                        </span>
+                        <MessageContent
+                          content={message.content}
+                          emotes={message.emotes}
+                          badgeInfo={message.badgeInfo}
+                          isAction={message.isAction}
+                          bits={message.bits}
+                          isFirstMessage={message.isFirstMessage}
+                          isDeleted={messageContext?.deletedIds.has(message.messageId)}
+                          replyTo={
+                            message.replyToMessageId
+                              ? (messageContext?.replyTargets.get(message.replyToMessageId) ?? null)
+                              : null
+                          }
+                        />
                       </TableCell>
                     </TableRow>
                   ))
@@ -483,13 +560,13 @@ export default async function ViewerProfilePage({
                 ) : (
                   eventsPage.items.map((event) => (
                     <TableRow key={event.id}>
-                      <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="whitespace-nowrap text-meta">
                         {formatDateTime(event.occurredAt)}
                       </TableCell>
                       <TableCell>
                         <EventBadge type={event.eventType} />
                       </TableCell>
-                      <TableCell className="text-xs text-[var(--color-muted-foreground)]">
+                      <TableCell className="text-meta">
                         {event.channelName}
                       </TableCell>
                       <TableCell className="text-xs">
@@ -557,13 +634,13 @@ export default async function ViewerProfilePage({
                   ) : (
                     moderationPage.items.map((entry) => (
                       <TableRow key={entry.id}>
-                        <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                        <TableCell className="whitespace-nowrap text-meta">
                           {formatDateTime(entry.occurredAt)}
                         </TableCell>
                         <TableCell>
                           <ModerationBadge action={entry.action} />
                         </TableCell>
-                        <TableCell className="text-xs text-[var(--color-muted-foreground)]">
+                        <TableCell className="text-meta">
                           {entry.channelName}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-xs">

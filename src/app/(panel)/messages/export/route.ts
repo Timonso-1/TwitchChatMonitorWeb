@@ -3,19 +3,10 @@ import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 
 import { AuthorizationError, assertPermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { buildCsv, csvHeaders } from "@/lib/csv";
 import { exportMessages } from "@/lib/queries/twitch";
 
 const EXPORT_LIMIT = 10_000;
-
-/** Maskiert Werte, die von Excel als Formel interpretiert werden koennten. */
-function csvEscape(value: unknown): string {
-  if (value === null || value === undefined) return "";
-
-  let text = value instanceof Date ? value.toISOString() : String(value);
-  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-
-  return `"${text.replace(/"/g, '""')}"`;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,25 +24,20 @@ export async function GET(request: NextRequest) {
 
     const rows = await exportMessages(filters, EXPORT_LIMIT);
 
-    const header = ["Zeitpunkt", "Channel", "Benutzername", "Anzeigename", "Mod", "Sub", "VIP", "Bits", "Nachricht"];
-    const lines = [
-      header.map(csvEscape).join(","),
-      ...rows.map((row) =>
-        [
-          row.receivedAt,
-          row.channelName,
-          row.userName,
-          row.displayName ?? "",
-          row.isMod ? "ja" : "nein",
-          row.isSubscriber ? "ja" : "nein",
-          row.isVip ? "ja" : "nein",
-          row.bits,
-          row.content,
-        ]
-          .map(csvEscape)
-          .join(","),
-      ),
-    ];
+    const csv = buildCsv(
+      ["Zeitpunkt", "Channel", "Benutzername", "Anzeigename", "Mod", "Sub", "VIP", "Bits", "Nachricht"],
+      rows.map((row) => [
+        row.receivedAt,
+        row.channelName,
+        row.userName,
+        row.displayName ?? "",
+        row.isMod,
+        row.isSubscriber,
+        row.isVip,
+        row.bits,
+        row.content,
+      ]),
+    );
 
     await writeAudit({
       action: AUDIT_ACTIONS.MESSAGES_EXPORTED,
@@ -61,16 +47,7 @@ export async function GET(request: NextRequest) {
       metadata: { rows: rows.length, filters, truncated: rows.length >= EXPORT_LIMIT },
     });
 
-    const filename = `nachrichten-${new Date().toISOString().slice(0, 10)}.csv`;
-
-    // BOM, damit Excel UTF-8 korrekt erkennt.
-    return new NextResponse(`﻿${lines.join("\r\n")}`, {
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store",
-      },
-    });
+    return new NextResponse(csv, { headers: csvHeaders("nachrichten") });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return NextResponse.json({ error: error.message }, { status: 403 });

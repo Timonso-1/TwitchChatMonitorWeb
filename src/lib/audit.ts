@@ -39,6 +39,12 @@ export const AUDIT_ACTIONS = {
   VIEWER_NOTE_DELETED: "viewer_note.deleted",
 
   MESSAGES_EXPORTED: "messages.exported",
+  EVENTS_EXPORTED: "events.exported",
+  MODERATION_EXPORTED: "moderation.exported",
+
+  WATCH_TERM_CREATED: "watch_term.created",
+  WATCH_TERM_UPDATED: "watch_term.updated",
+  WATCH_TERM_DELETED: "watch_term.deleted",
 
   TWITCH_LINKED: "auth.twitch.linked",
   TWITCH_UNLINKED: "auth.twitch.unlinked",
@@ -78,6 +84,11 @@ const ACTION_LABELS: Record<string, string> = {
   [AUDIT_ACTIONS.VIEWER_NOTE_UPDATED]: "Notiz bearbeitet",
   [AUDIT_ACTIONS.VIEWER_NOTE_DELETED]: "Notiz geloescht",
   [AUDIT_ACTIONS.MESSAGES_EXPORTED]: "Nachrichten exportiert",
+  [AUDIT_ACTIONS.EVENTS_EXPORTED]: "Events exportiert",
+  [AUDIT_ACTIONS.MODERATION_EXPORTED]: "Moderationslog exportiert",
+  [AUDIT_ACTIONS.WATCH_TERM_CREATED]: "Wortfilter-Begriff angelegt",
+  [AUDIT_ACTIONS.WATCH_TERM_UPDATED]: "Wortfilter-Begriff bearbeitet",
+  [AUDIT_ACTIONS.WATCH_TERM_DELETED]: "Wortfilter-Begriff entfernt",
   [AUDIT_ACTIONS.TWITCH_LINKED]: "Twitch verknuepft",
   [AUDIT_ACTIONS.TWITCH_UNLINKED]: "Twitch-Verknuepfung geloest",
   [AUDIT_ACTIONS.TWITCH_LINK_FAILED]: "Twitch-Verknuepfung fehlgeschlagen",

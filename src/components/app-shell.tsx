@@ -7,16 +7,19 @@ import {
   ArrowLeftRight,
   ChevronDown,
   ChevronsUpDown,
+  Eye,
   KeyRound,
   LayoutDashboard,
   LogOut,
   MessageSquare,
   Menu,
   PanelLeft,
+  Radar,
   Radio,
   ScrollText,
   ShieldAlert,
   ShieldCheck,
+  Smile,
   Twitch,
   UserCog,
   Users,
@@ -33,6 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { Breadcrumbs, type Crumb } from "@/components/breadcrumbs";
 import { CommandPalette, type CommandEntry } from "@/components/command-palette";
 import { ThemeSwitch } from "@/components/theme-switch";
@@ -52,6 +56,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   KeyRound,
   ScrollText,
   ArrowLeftRight,
+  Radar,
+  Eye,
+  Smile,
 };
 
 export interface AppShellUser {
@@ -174,16 +181,16 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
         <Twitch className="size-4 text-white" />
       </div>
       <div className="min-w-0 leading-tight">
-        <p className="truncate text-sm font-semibold">TwitchPanel</p>
+        <p className="truncate text-base font-bold tracking-tight text-[var(--color-foreground)]">TwitchPanel</p>
         <p className="truncate text-xs text-[var(--color-subtle)]">Chat-Monitor</p>
       </div>
     </Link>
   );
 
   const navigation = (
-    // shrink-0 statt flex-1: die Navigation nimmt nur ihre eigene Höhe ein,
-    // damit der Account-Block direkt darunter sitzt statt am unteren Rand.
-    <nav className="min-h-0 shrink overflow-y-auto scrollbar-thin px-2 py-2">
+    // Nimmt den freien Raum ein und scrollt bei Bedarf – Kopfbereich und
+    // Account-Block bleiben dabei stehen.
+    <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto scrollbar-thin px-2.5 py-3">
       {sections.map((section) => {
         const isCollapsed = collapsed.includes(section.label);
         // Eine Gruppe mit aktivem Eintrag bleibt sichtbar, auch wenn sie eingeklappt ist.
@@ -191,24 +198,25 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
         const showItems = !isCollapsed || hasActiveItem;
 
         return (
-          <div key={section.label} className="pb-1 last:pb-0">
+          <div key={section.label}>
+            {/* Überschrift links, Pfeil rechts am Zeilenende */}
             <button
               type="button"
               onClick={() => toggleSection(section.label)}
               aria-expanded={showItems}
-              className="group flex w-full items-center gap-1 rounded px-2 py-1 text-[0.7rem] font-medium uppercase tracking-wide text-[var(--color-subtle)] transition-colors hover:text-[var(--color-muted-foreground)]"
+              className="flex w-full items-center justify-between gap-2 rounded px-2.5 py-1.5 text-sm font-medium text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
             >
+              <span className="truncate">{section.label}</span>
               <ChevronDown
                 className={cn(
-                  "size-3 shrink-0 transition-transform duration-150",
+                  "size-3.5 shrink-0 opacity-60 transition-transform duration-150",
                   !showItems && "-rotate-90",
                 )}
               />
-              <span className="truncate">{section.label}</span>
             </button>
 
             {showItems && (
-              <div className="space-y-px">
+              <div className="space-y-0.5 pt-0.5">
                 {section.items.map((item) => {
                   const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
                   const active = isActive(pathname, item);
@@ -219,13 +227,13 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors duration-100",
+                        "flex items-center gap-3 rounded-md px-2.5 py-2 text-[0.95rem] font-semibold transition-colors duration-100",
                         active
-                          ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
-                          : "text-[var(--color-muted-foreground)] hover:bg-[var(--color-surface)] hover:text-[var(--color-foreground)]",
+                          ? "bg-[var(--color-accent)] text-[var(--color-foreground)]"
+                          : "text-[var(--color-foreground)] hover:bg-[var(--color-accent)]",
                       )}
                     >
-                      <Icon className={cn("size-4 shrink-0", active ? "opacity-100" : "opacity-60")} />
+                      <Icon className={cn("size-5 shrink-0", active ? "opacity-100" : "opacity-80")} />
                       <span className="truncate">{item.label}</span>
                     </Link>
                   );
@@ -240,7 +248,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
 
   /** Account-Block am Fuss der Seitenleiste. */
   const accountBlock = (
-    <div className="shrink-0 border-t border-[var(--color-border)] p-2">
+    <div className="shrink-0 border-t border-[var(--color-border)] p-2.5">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -341,7 +349,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
       {navigation}
 
       {!user.totpEnabled && (
-        <div className="shrink-0 px-2 pb-2">
+        <div className="shrink-0 px-2.5 pb-2">
           <Link
             href="/setup-2fa"
             className="flex items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--color-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] px-2.5 py-1.5 text-xs text-[var(--color-foreground)]"
@@ -359,12 +367,8 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   return (
     <div className="flex min-h-dvh bg-[var(--color-background)]">
       {sidebarVisible && (
-        // Der Rahmen läuft über die volle Höhe, die eingefärbte Fläche endet
-        // aber mit dem Inhalt – darunter bleibt der Seitenhintergrund sichtbar.
-        <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r border-[var(--color-border)] lg:flex">
-          <div className="flex max-h-full flex-col overflow-hidden rounded-br-lg border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-            {sidebarInner}
-          </div>
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex">
+          {sidebarInner}
         </aside>
       )}
 
@@ -376,7 +380,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
             className="absolute inset-0 bg-[hsl(0_0%_0%/0.55)]"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative flex h-full w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)]">
+          <aside className="relative flex h-full w-60 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)]">
             <Button
               variant="ghost"
               size="icon"
@@ -417,7 +421,14 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
                 2FA fehlt
               </Badge>
             )}
-            <CommandPalette entries={commandEntries} />
+
+            {/* Auf Seiten mit eigener Aktualisierung (Live-Chat) überflüssig. */}
+            {!pathname.startsWith("/live") && <AutoRefresh />}
+
+            <CommandPalette
+              entries={commandEntries}
+              canSearchMessages={hasPermission(user.permissions, "messages.view")}
+            />
           </div>
         </header>
 

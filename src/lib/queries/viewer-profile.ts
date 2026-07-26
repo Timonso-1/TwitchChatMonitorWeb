@@ -2,6 +2,7 @@ import "server-only";
 import { and, count, desc, eq, gt, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { adminViewerNotes, events, messages, moderationActions, viewers } from "@/lib/db/schema";
+import { isFounder, subscriberMonths } from "@/lib/twitch-tags";
 
 export interface ViewerProfileNote {
   id: number;
@@ -16,9 +17,13 @@ export interface ViewerProfileNote {
 
 export interface ViewerProfileMessage {
   id: number;
+  messageId: string;
   channelName: string;
   content: string;
   color: string | null;
+  emotes: string | null;
+  badgeInfo: string | null;
+  replyToMessageId: string | null;
   bits: number;
   isMod: boolean;
   isSubscriber: boolean;
@@ -202,9 +207,13 @@ export async function getViewerProfile(
     db
       .select({
         id: messages.id,
+        messageId: messages.messageId,
         channelName: messages.channelName,
         content: messages.content,
         color: messages.color,
+        emotes: messages.emotes,
+        badgeInfo: messages.badgeInfo,
+        replyToMessageId: messages.replyToMessageId,
         bits: messages.bits,
         isMod: messages.isMod,
         isSubscriber: messages.isSubscriber,
@@ -334,9 +343,13 @@ export async function getViewerMessagesPage(
     db
       .select({
         id: messages.id,
+        messageId: messages.messageId,
         channelName: messages.channelName,
         content: messages.content,
         color: messages.color,
+        emotes: messages.emotes,
+        badgeInfo: messages.badgeInfo,
+        replyToMessageId: messages.replyToMessageId,
         bits: messages.bits,
         isMod: messages.isMod,
         isSubscriber: messages.isSubscriber,
@@ -424,6 +437,68 @@ export async function getViewerModerationPage(
   ]);
 
   return { items, total: totalRow[0]?.value ?? 0 };
+}
+
+export interface SubscriptionSpan {
+  /** Hoechste beobachtete Abo-Dauer in Monaten. */
+  maxMonths: number;
+  /** Wann diese Dauer zuletzt bestaetigt wurde. */
+  lastSeenAt: Date;
+  /** Erste Nachricht, in der ein Abo-Abzeichen auftauchte. */
+  firstSubAt: Date | null;
+  /** War der Nutzer Gruender des Kanals? */
+  isFounder: boolean;
+}
+
+/**
+ * Liest die tatsaechliche Abo-Dauer aus `badge_info` der Chatnachrichten.
+ *
+ * Das ist genauer als die Event-Daten: `badge_info` kommt bei JEDER Nachricht
+ * mit und nennt die laufende Monatszahl, waehrend Events nur zum Zeitpunkt
+ * einer Verlaengerung entstehen.
+ *
+ * Betrachtet werden die neuesten 5000 Nachrichten des Nutzers – das genuegt,
+ * um den aktuellen Stand zu bestimmen, ohne die Datenbank zu belasten.
+ */
+export async function getSubscriptionInfo(userId: string): Promise<SubscriptionSpan | null> {
+  const rows = await db
+    .select({
+      badgeInfo: messages.badgeInfo,
+      badges: messages.badges,
+      receivedAt: messages.receivedAt,
+    })
+    .from(messages)
+    .where(and(eq(messages.userId, userId), eq(messages.isSubscriber, true)))
+    .orderBy(desc(messages.receivedAt))
+    .limit(5000);
+
+  if (rows.length === 0) return null;
+
+  let maxMonths = 0;
+  let lastSeenAt: Date | null = null;
+  let firstSubAt: Date | null = null;
+  let founder = false;
+
+  for (const row of rows) {
+    const months = subscriberMonths(row.badgeInfo);
+    if (isFounder(row.badges)) founder = true;
+
+    if (months !== null && months > maxMonths) {
+      maxMonths = months;
+      lastSeenAt = row.receivedAt;
+    }
+
+    if (!firstSubAt || row.receivedAt < firstSubAt) firstSubAt = row.receivedAt;
+  }
+
+  if (maxMonths === 0) return null;
+
+  return {
+    maxMonths,
+    lastSeenAt: lastSeenAt ?? rows[0].receivedAt,
+    firstSubAt,
+    isFounder: founder,
+  };
 }
 
 export interface ViewerActivityPoint {

@@ -25,7 +25,8 @@ import {
 } from "./chart-primitives";
 import { formatNumber } from "@/lib/utils";
 
-interface BarChartProps<T extends Record<string, unknown>> {
+/** Siehe AreaChart: `object` statt `Record`, damit auch Interfaces passen. */
+interface BarChartProps<T extends object> {
   data: T[];
   xKey: string;
   series: SeriesConfig[];
@@ -52,7 +53,7 @@ interface BarChartProps<T extends Record<string, unknown>> {
   angledTicks?: boolean;
 }
 
-export function BarChart<T extends Record<string, unknown>>({
+export function BarChart<T extends object>({
   data,
   xKey,
   series,

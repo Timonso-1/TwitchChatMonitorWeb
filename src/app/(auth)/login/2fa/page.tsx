@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { AuthShell } from "../../auth-shell";
 import { TwoFactorForm } from "./two-factor-form";
 
 export const metadata: Metadata = { title: "Zwei-Faktor-Bestätigung" };
@@ -12,5 +13,9 @@ export default async function TwoFactorPage() {
   if (session.twoFactorVerified) redirect("/dashboard");
   if (!session.user.totpEnabled) redirect("/setup-2fa");
 
-  return <TwoFactorForm username={session.user.displayName ?? session.user.username} />;
+  return (
+    <AuthShell>
+      <TwoFactorForm username={session.user.displayName ?? session.user.username} />
+    </AuthShell>
+  );
 }

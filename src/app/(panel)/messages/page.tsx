@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ChatName } from "@/components/chat-name";
 import { ListTrendHeader } from "@/components/list-trend-header";
+import { MessageContent } from "@/components/message-content";
 import { ChatRoleBadges } from "@/components/twitch-badges";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +18,9 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
-import { listMessages } from "@/lib/queries/twitch";
+import { getMessageContext, listMessages } from "@/lib/queries/twitch";
 import { TREND_RANGES, getMessageTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
-import { getViewerAvatars } from "@/lib/twitch-api";
+import { getCachedViewerAvatars } from "@/lib/twitch-api";
 import { buildQueryString, formatDateTime, formatNumber, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Nachrichten" };
@@ -66,7 +67,10 @@ export default async function MessagesPage({
     getMessageTrend(range),
   ]);
 
-  const avatars = await getViewerAvatars(items.map((message) => message.userId));
+  const [avatars, context] = await Promise.all([
+    getCachedViewerAvatars(items.map((message) => message.userId)),
+    getMessageContext(items),
+  ]);
 
   const activeFilters = { channel: channelUuid, user, content, role: role === "all" ? undefined : role, from, to };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
@@ -169,10 +173,10 @@ export default async function MessagesPage({
               ) : (
                 items.map((message) => (
                   <TableRow key={message.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
+                    <TableCell className="whitespace-nowrap text-meta">
                       {formatDateTime(message.receivedAt)}
                     </TableCell>
-                    <TableCell className="text-xs text-[var(--color-muted-foreground)]">
+                    <TableCell className="text-meta">
                       {message.channelName}
                     </TableCell>
                     <TableCell>
@@ -200,13 +204,20 @@ export default async function MessagesPage({
                       </div>
                     </TableCell>
                     <TableCell className="max-w-xl">
-                      <span className={message.isAction ? "italic text-[var(--color-brand)]" : undefined}>
-                        {message.content}
-                      </span>
-                      <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
-                        {message.bits > 0 && <Badge variant="success">{formatNumber(message.bits)} Bits</Badge>}
-                        {message.isFirstMessage && <Badge variant="warning">Erste Nachricht</Badge>}
-                      </span>
+                      <MessageContent
+                        content={message.content}
+                        emotes={message.emotes}
+                        badgeInfo={message.badgeInfo}
+                        isAction={message.isAction}
+                        bits={message.bits}
+                        isFirstMessage={message.isFirstMessage}
+                        isDeleted={context.deletedIds.has(message.messageId)}
+                        replyTo={
+                          message.replyToMessageId
+                            ? (context.replyTargets.get(message.replyToMessageId) ?? null)
+                            : null
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 ))

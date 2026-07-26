@@ -25,7 +25,7 @@ import {
   normalizeRange,
 } from "@/lib/queries/dashboard";
 import { eventDetailText, eventTypeLabel, formatDuration } from "@/lib/twitch";
-import { getViewerAvatars } from "@/lib/twitch-api";
+import { getCachedViewerAvatars } from "@/lib/twitch-api";
 import { formatNumber, formatRelative } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -58,7 +58,7 @@ export default async function DashboardPage({
       canSeeModeration ? getRecentModeration(6) : Promise.resolve([]),
     ]);
 
-  const chatterAvatars = await getViewerAvatars(topChatters.map((chatter) => chatter.userId));
+  const chatterAvatars = await getCachedViewerAvatars(topChatters.map((chatter) => chatter.userId));
 
   const hourly = range <= 1;
 

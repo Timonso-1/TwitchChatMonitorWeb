@@ -208,6 +208,25 @@
     box-shadow: var(--inset-highlight);
   }
 
+  /*
+   * Nebenangaben in Tabellen – Zeitstempel, Channelnamen, IDs.
+   * Etwas groesser und heller als `text-xs text-muted-foreground`,
+   * damit sie auf dunklem Grund lesbar bleiben, ohne den Hauptinhalt
+   * zu ueberstrahlen.
+   */
+  .text-meta {
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    color: color-mix(in srgb, var(--color-foreground) 68%, transparent);
+  }
+
+  .text-meta-mono {
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: color-mix(in srgb, var(--color-foreground) 62%, transparent);
+  }
+
   .shadow-panel {
     box-shadow: var(--shadow-panel);
   }

@@ -43,11 +43,12 @@ export default async function LinkTwitchPage({
   const configured = isTwitchOAuthConfigured();
 
   return (
-    <Card>
+    <AuthShell>
+      <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-md bg-[#9147ff]">
-            <Twitch className="size-4 text-white" />
+          <span className="flex size-7 items-center justify-center rounded-md bg-[var(--color-secondary)]">
+            <Twitch className="size-4" />
           </span>
           Twitch verknüpfen
         </CardTitle>
@@ -84,7 +85,7 @@ export default async function LinkTwitchPage({
           Administrator lösen.
         </p>
 
-        <Button asChild className="w-full bg-[#9147ff] text-white hover:bg-[#7d2ff3]" disabled={!configured}>
+        <Button asChild className="w-full" disabled={!configured}>
           <Link href="/auth/twitch/start" prefetch={false}>
             <Twitch />
             Mit Twitch verbinden
@@ -97,6 +98,7 @@ export default async function LinkTwitchPage({
           </Button>
         </form>
       </CardContent>
-    </Card>
+      </Card>
+    </AuthShell>
   );
 }

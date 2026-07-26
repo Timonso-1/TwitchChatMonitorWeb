@@ -210,10 +210,112 @@ export interface ViewerAvatar {
 }
 
 /**
- * Liefert Profilbilder zu den angegebenen Twitch-User-IDs.
- * Fehlende oder veraltete Eintraege werden nachgeladen, sofern
- * Zugangsdaten hinterlegt sind. Fehler fuehren nie zu einem Abbruch –
- * im Zweifel gibt es einfach kein Bild.
+ * Liefert Profilbilder aus dem Zwischenspeicher, OHNE auf die Twitch-API zu warten.
+ *
+ * Fehlende Eintraege werden im Hintergrund nachgeladen und stehen beim
+ * naechsten Aufruf bereit. Das ist der entscheidende Unterschied zu
+ * `getViewerAvatars`: dort wartet der Seitenaufbau auf die API-Antwort,
+ * was bei vielen unbekannten Nutzern mehrere Sekunden kosten kann.
+ */
+export async function getCachedViewerAvatars(userIds: string[]): Promise<Map<string, ViewerAvatar>> {
+  const result = new Map<string, ViewerAvatar>();
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return result;
+
+  try {
+    const cached = await db
+      .select()
+      .from(adminViewerProfiles)
+      .where(inArray(adminViewerProfiles.userId, unique));
+
+    for (const row of cached) {
+      result.set(row.userId, {
+        userId: row.userId,
+        profileImageUrl: row.profileImageUrl,
+        displayName: row.displayName,
+      });
+    }
+
+    if (!isTwitchApiConfigured()) return result;
+
+    // Was fehlt, wird nachgeladen – aber ohne darauf zu warten.
+    const now = Date.now();
+    const cachedById = new Map(cached.map((row) => [row.userId, row]));
+
+    const stale = unique.filter((id) => {
+      const row = cachedById.get(id);
+      if (!row) return true;
+
+      const age = now - row.fetchedAt.getTime();
+      return row.notFound ? age > NOT_FOUND_TTL_MS : age > CACHE_TTL_MS;
+    });
+
+    if (stale.length > 0) {
+      // Bewusst ohne await: der Seitenaufbau soll nicht darauf warten.
+      void refreshProfiles(stale).catch((error) => {
+        console.error("[twitch] Hintergrundabruf fehlgeschlagen:", error);
+      });
+    }
+  } catch (error) {
+    console.error("[twitch] Profil-Cache nicht lesbar:", error);
+  }
+
+  return result;
+}
+
+/** Holt Profile bei Twitch und schreibt sie in den Zwischenspeicher. */
+async function refreshProfiles(userIds: string[]): Promise<void> {
+  const users = await fetchUsersFromApi(userIds, "id");
+  const fetchedAt = new Date();
+  const foundIds = new Set(users.map((user) => user.id));
+
+  if (users.length > 0) {
+    await db
+      .insert(adminViewerProfiles)
+      .values(
+        users.map((user) => ({
+          userId: user.id,
+          login: user.login,
+          displayName: user.display_name,
+          profileImageUrl: user.profile_image_url,
+          offlineImageUrl: user.offline_image_url || null,
+          description: user.description || null,
+          broadcasterType: user.broadcaster_type || null,
+          twitchCreatedAt: user.created_at ? new Date(user.created_at) : null,
+          fetchedAt,
+          notFound: false,
+        })),
+      )
+      .onDuplicateKeyUpdate({
+        set: {
+          login: sql`VALUES(login)`,
+          displayName: sql`VALUES(display_name)`,
+          profileImageUrl: sql`VALUES(profile_image_url)`,
+          offlineImageUrl: sql`VALUES(offline_image_url)`,
+          description: sql`VALUES(description)`,
+          broadcasterType: sql`VALUES(broadcaster_type)`,
+          twitchCreatedAt: sql`VALUES(twitch_created_at)`,
+          fetchedAt: sql`VALUES(fetched_at)`,
+          notFound: sql`0`,
+        },
+      });
+  }
+
+  const missing = userIds.filter((id) => !foundIds.has(id));
+
+  if (missing.length > 0) {
+    await db
+      .insert(adminViewerProfiles)
+      .values(missing.map((userId) => ({ userId, fetchedAt, notFound: true })))
+      .onDuplicateKeyUpdate({
+        set: { fetchedAt: sql`VALUES(fetched_at)`, notFound: sql`1` },
+      });
+  }
+}
+
+/**
+ * Liefert Profilbilder und WARTET auf fehlende Eintraege.
+ * Nur fuer Einzelabrufe geeignet – bei Listen `getCachedViewerAvatars` nutzen.
  */
 export async function getViewerAvatars(userIds: string[]): Promise<Map<string, ViewerAvatar>> {
   const result = new Map<string, ViewerAvatar>();

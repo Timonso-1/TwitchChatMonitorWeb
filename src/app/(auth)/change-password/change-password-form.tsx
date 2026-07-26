@@ -5,8 +5,8 @@ import { useActionState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { PasswordRequirements } from "@/components/password-requirements";
 import { changeOwnPassword } from "@/lib/actions/auth";
@@ -43,7 +43,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
           <form action={formAction} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="currentPassword">Aktuelles Passwort</Label>
-              <Input id="currentPassword" name="currentPassword" type="password" autoComplete="current-password" required />
+              <PasswordInput id="currentPassword" name="currentPassword" autoComplete="current-password" required />
               {state.fieldErrors?.currentPassword?.map((error) => (
                 <p key={error} className="text-xs text-[var(--color-destructive)]">
                   {error}
@@ -53,7 +53,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="newPassword">Neues Passwort</Label>
-              <Input id="newPassword" name="newPassword" type="password" autoComplete="new-password" required />
+              <PasswordInput id="newPassword" name="newPassword" autoComplete="new-password" required />
               {state.fieldErrors?.newPassword?.map((error) => (
                 <p key={error} className="text-xs text-[var(--color-destructive)]">
                   {error}
@@ -63,7 +63,7 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
 
             <div className="space-y-1.5">
               <Label htmlFor="confirmPassword">Neues Passwort bestätigen</Label>
-              <Input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required />
+              <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" required />
               {state.fieldErrors?.confirmPassword?.map((error) => (
                 <p key={error} className="text-xs text-[var(--color-destructive)]">
                   {error}

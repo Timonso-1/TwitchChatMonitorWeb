@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { createTwoFactorSetup } from "@/lib/auth/setup";
+import { AuthShell } from "../auth-shell";
 import { SetupTwoFactorForm } from "./setup-form";
 
 export const metadata: Metadata = { title: "Zwei-Faktor einrichten" };
@@ -19,11 +20,13 @@ export default async function SetupTwoFactorPage() {
   const setup = await createTwoFactorSetup(session.user.email);
 
   return (
-    <SetupTwoFactorForm
-      secret={setup.secret}
-      secretToken={setup.secretToken}
-      qrCode={setup.qrCode}
-      accountLabel={session.user.email}
-    />
+    <AuthShell>
+      <SetupTwoFactorForm
+        secret={setup.secret}
+        secretToken={setup.secretToken}
+        qrCode={setup.qrCode}
+        accountLabel={session.user.email}
+      />
+    </AuthShell>
   );
 }

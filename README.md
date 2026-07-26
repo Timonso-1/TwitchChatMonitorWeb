@@ -47,6 +47,7 @@ Die panel-eigenen Tabellen anlegen — die Dateien in dieser Reihenfolge einspie
 2. `sql/003_viewer_notes.sql` — Zuschauer-Notizen und die zugehörigen Rechte
 3. `sql/004_viewer_profiles.sql` — Zwischenspeicher für Twitch-Profilbilder
 4. `sql/005_twitch_link.sql` — Twitch-Verknüpfung der Panel-Accounts
+5. `sql/006_watch_terms.sql` — Wortfilter und die zugehörigen Rechte
 
 In HeidiSQL: Datenbank auswählen, **Datei → SQL-Datei öffnen**, dann **F9**.
 
@@ -216,6 +217,61 @@ src/
 | `npm run seed`       | Rollen und ersten Superadmin anlegen            |
 | `npm run db:push`    | Schema mit der Datenbank abgleichen             |
 | `npm run db:studio`  | Drizzle Studio öffnen                           |
+
+## Auswertung der Twitch-Tags
+
+Der Bot speichert mehrere IRC-Tags roh mit. Die Auswertung liegt gebündelt in
+`src/lib/twitch-tags.ts`:
+
+**`emotes`** hat das Format `emoteId:start-end,start-end/emoteId:start-end`. Der Emote-**Name**
+steht nicht im Tag — er wird aus dem Nachrichtentext an den angegebenen Positionen
+herausgeschnitten. Die Positionen zählen in Unicode-Codepoints, deshalb arbeitet der Parser
+mit `[...content]` statt mit `slice`; sonst verrutschen die Grenzen, sobald ein Emoji im Text
+steht. Die Bilder kommen vom Twitch-CDN.
+
+**`badge_info`** enthält bei Abonnenten die **tatsächliche Abo-Dauer in Monaten**
+(`subscriber/24`). Das ist genauer als die Event-Daten, weil es bei jeder Nachricht mitkommt,
+während Events nur bei Verlängerungen entstehen. Das Chatter-Profil zeigt deshalb den Wert aus
+dem Abzeichen und nennt, wann er zuletzt bestätigt wurde.
+
+**`reply_to_message_id`** verweist auf `messages.message_id`. In der Nachrichtenansicht steht
+darüber, auf welche Nachricht geantwortet wurde. Twitch verweist immer auf die
+Ursprungsnachricht, nicht auf die vorherige Antwort — Ketten sind also flach.
+
+**`moderation_actions.deleted_message_id`** verweist ebenfalls auf `messages.message_id`.
+Gelöschte Nachrichten sind im Verlauf durchgestrichen und als solche markiert.
+
+Die Emote-Statistik unter */emotes* wertet höchstens 20.000 Nachrichten aus — der Tag lässt
+sich nicht indizieren, eine vollständige Auswertung wäre zu langsam. Die Seite weist darauf hin,
+wenn die Grenze erreicht wurde.
+
+## Wortfilter und Live-Chat
+
+Unter *Wortfilter* lassen sich Begriffe hinterlegen, die im Chat beobachtet werden. Jeder
+Begriff hat eine **Trefferart** — „enthält“, „ganzes Wort“ oder ein regulärer Ausdruck —
+sowie eine Stufe (Hinweis, Warnung, kritisch). Optional gilt ein Begriff nur für einen
+bestimmten Channel.
+
+Treffer werden überall im Panel farblich hervorgehoben: im Live-Chat, in der Trefferliste
+und in der Nachrichtenansicht. Im Live-Chat lässt sich per Schalter auf „nur Treffer“
+umstellen.
+
+**Zur Genauigkeit.** Die Vorauswahl in der Datenbank arbeitet mit `LIKE` bzw. `REGEXP` —
+reguläre Ausdrücke lassen sich in MySQL nicht indizieren. Die genaue Prüfung mit
+Wortgrenzen passiert danach in JavaScript. Deshalb sind die Trefferzahlen in der Verwaltung
+eine Obergrenze, die Trefferliste zeigt die tatsächlichen Fundstellen.
+
+Der Live-Chat fragt neue Nachrichten per Polling ab (2, 5 oder 15 Sekunden). Bewusst kein
+WebSocket: der Bot schreibt in die Datenbank, das Panel liest daraus — ein Push-Kanal wäre
+zusätzliche Infrastruktur ohne echten Gewinn.
+
+## Beobachtungsliste
+
+Führt Chatter zusammen, zu denen Notizen vorliegen oder gegen die moderiert wurde. Die
+Reihenfolge ergibt sich aus einer einfachen Gewichtung (`src/lib/queries/watchboard.ts`):
+kritische Notiz 40, Bann 30, Warnung 15, Timeout 8 Punkte. Jeder Eintrag nennt die Gründe
+im Klartext — es geht um eine Arbeitsliste für das Team, nicht um eine automatische
+Beurteilung.
 
 ## Twitch-Verknüpfung der Accounts
 

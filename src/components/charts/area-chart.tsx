@@ -24,7 +24,12 @@ import {
 } from "./chart-primitives";
 import { formatNumber } from "@/lib/utils";
 
-interface AreaChartProps<T extends Record<string, unknown>> {
+/**
+ * `T extends object` statt `Record<string, unknown>`: Interfaces erfüllen
+ * die Record-Form nicht, weil ihnen die Index-Signatur fehlt. Zugegriffen
+ * wird ohnehin nur über die Schlüssel in `xKey` und `series`.
+ */
+interface AreaChartProps<T extends object> {
   data: T[];
   /** Feld fuer die X-Achse. */
   xKey: string;
@@ -43,7 +48,7 @@ interface AreaChartProps<T extends Record<string, unknown>> {
 }
 
 /** Flaechendiagramm mit weichem Farbverlauf – fuer Zeitreihen. */
-export function AreaChart<T extends Record<string, unknown>>({
+export function AreaChart<T extends object>({
   data,
   xKey,
   series,
