@@ -4,6 +4,7 @@ import { Download, Sparkles, Zap } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
+import { EventCell } from "@/components/event-detail-dialog";
 import { EventBadge, SubTierBadge } from "@/components/twitch-badges";
 import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
@@ -180,7 +181,11 @@ export default async function EventsPage({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-md truncate text-sm">{event.message ?? "—"}</TableCell>
+                    <TableCell className="max-w-md text-sm">
+                      <EventCell event={event}>
+                        <p className="truncate">{event.message ?? "—"}</p>
+                      </EventCell>
+                    </TableCell>
                   </TableRow>
                 ))
               )}

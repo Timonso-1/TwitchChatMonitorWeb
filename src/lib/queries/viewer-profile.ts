@@ -41,6 +41,8 @@ export interface ViewerProfileModeration {
   id: number;
   channelName: string;
   action: string;
+  targetUserId: string | null;
+  targetUserName: string | null;
   durationSeconds: number | null;
   reason: string | null;
   deletedMessageContent: string | null;
@@ -51,6 +53,8 @@ export interface ViewerProfileEvent {
   id: number;
   channelName: string;
   eventType: string;
+  userId: string | null;
+  userName: string | null;
   subTier: string | null;
   months: number | null;
   giftCount: number | null;
@@ -238,6 +242,8 @@ export async function getViewerProfile(
         id: moderationActions.id,
         channelName: moderationActions.channelName,
         action: moderationActions.action,
+        targetUserId: moderationActions.targetUserId,
+        targetUserName: moderationActions.targetUserName,
         durationSeconds: moderationActions.durationSeconds,
         reason: moderationActions.reason,
         deletedMessageContent: moderationActions.deletedMessageContent,
@@ -253,6 +259,8 @@ export async function getViewerProfile(
         id: events.id,
         channelName: events.channelName,
         eventType: events.eventType,
+        userId: events.userId,
+        userName: events.userName,
         subTier: events.subTier,
         months: events.months,
         giftCount: events.giftCount,
@@ -400,6 +408,8 @@ export async function getViewerEventsPage(
         id: events.id,
         channelName: events.channelName,
         eventType: events.eventType,
+        userId: events.userId,
+        userName: events.userName,
         subTier: events.subTier,
         months: events.months,
         giftCount: events.giftCount,
@@ -431,6 +441,8 @@ export async function getViewerModerationPage(
         id: moderationActions.id,
         channelName: moderationActions.channelName,
         action: moderationActions.action,
+        targetUserId: moderationActions.targetUserId,
+        targetUserName: moderationActions.targetUserName,
         durationSeconds: moderationActions.durationSeconds,
         reason: moderationActions.reason,
         deletedMessageContent: moderationActions.deletedMessageContent,

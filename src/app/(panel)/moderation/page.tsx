@@ -4,6 +4,7 @@ import { Download, Gavel, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
+import { ModerationCell } from "@/components/moderation-detail-dialog";
 import { ModerationBadge } from "@/components/twitch-badges";
 import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
@@ -169,7 +170,11 @@ export default async function ModerationPage({
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{formatDuration(entry.durationSeconds)}</TableCell>
-                    <TableCell className="max-w-64 truncate text-sm">{entry.reason ?? "—"}</TableCell>
+                    <TableCell className="max-w-64 text-sm">
+                      <ModerationCell entry={entry}>
+                        <p className="truncate">{entry.reason ?? "—"}</p>
+                      </ModerationCell>
+                    </TableCell>
                     <TableCell className="max-w-md truncate text-sm text-[var(--color-muted-foreground)]">
                       {entry.deletedMessageContent ?? "—"}
                     </TableCell>

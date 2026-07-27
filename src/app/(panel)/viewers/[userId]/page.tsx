@@ -7,8 +7,9 @@ import { ChatBadges } from "@/components/chat-badges";
 import { ChatName } from "@/components/chat-name";
 import { DistributionChart } from "@/components/distribution-chart";
 import { FilterBar, FilterField } from "@/components/filter-bar";
-import { ClampedContent } from "@/components/clamped-content";
+import { EventCell } from "@/components/event-detail-dialog";
 import { MessageCell } from "@/components/message-cell";
+import { ModerationCell } from "@/components/moderation-detail-dialog";
 import { StatCard } from "@/components/stat-card";
 import { ChatRoleBadges, EventBadge, ModerationBadge, SubTierBadge } from "@/components/twitch-badges";
 import { TwitchProfileLink } from "@/components/twitch-profile-link";
@@ -566,13 +567,15 @@ export default async function ViewerProfilePage({
                 <TableRow>
                   <TableHead className="w-40">Zeit</TableHead>
                   <TableHead className="w-32">Typ</TableHead>
-                  <TableHead className="w-28">Channel</TableHead>
+                  <TableHead className="w-32">Channel</TableHead>
+                  <TableHead className="w-40">Nutzer</TableHead>
                   <TableHead>Details</TableHead>
+                  <TableHead>Nachricht</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {eventsPage.items.length === 0 ? (
-                  <TableEmpty colSpan={4} title="Keine Events aufgezeichnet" />
+                  <TableEmpty colSpan={6} title="Keine Events aufgezeichnet" />
                 ) : (
                   eventsPage.items.map((event) => (
                     <TableRow key={event.id}>
@@ -582,8 +585,15 @@ export default async function ViewerProfilePage({
                       <TableCell>
                         <EventBadge type={event.eventType} />
                       </TableCell>
-                      <TableCell className="text-meta">
-                        {event.channelName}
+                      <TableCell className="text-meta">{event.channelName}</TableCell>
+                      <TableCell className="max-w-40 truncate font-medium">
+                        {event.userId ? (
+                          <Link href={`/viewers/${event.userId}`} className="hover:underline">
+                            {event.userName ?? event.userId}
+                          </Link>
+                        ) : (
+                          (event.userName ?? "—")
+                        )}
                       </TableCell>
                       <TableCell className="text-xs">
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -597,11 +607,11 @@ export default async function ViewerProfilePage({
                             })}
                           </span>
                         </div>
-                        {event.message && (
-                          <div className="mt-0.5 text-[var(--color-subtle)]">
-                            <ClampedContent lines={2}>{event.message}</ClampedContent>
-                          </div>
-                        )}
+                      </TableCell>
+                      <TableCell className="max-w-md text-sm">
+                        <EventCell event={event}>
+                          <p className="truncate">{event.message ?? "—"}</p>
+                        </EventCell>
                       </TableCell>
                     </TableRow>
                   ))
@@ -641,15 +651,17 @@ export default async function ViewerProfilePage({
                   <TableRow>
                     <TableHead className="w-40">Zeit</TableHead>
                     <TableHead className="w-36">Aktion</TableHead>
-                    <TableHead className="w-28">Channel</TableHead>
+                    <TableHead className="w-32">Channel</TableHead>
+                    <TableHead className="w-40">Betroffen</TableHead>
                     <TableHead className="w-24">Dauer</TableHead>
                     <TableHead>Grund</TableHead>
+                    <TableHead>Gelöschte Nachricht</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {moderationPage.items.length === 0 ? (
                     <TableEmpty
-                      colSpan={5}
+                      colSpan={7}
                       title="Keine Moderationsaktionen"
                       description="Sauberer Verlauf — nichts aufgezeichnet."
                     />
@@ -662,19 +674,26 @@ export default async function ViewerProfilePage({
                         <TableCell>
                           <ModerationBadge action={entry.action} />
                         </TableCell>
-                        <TableCell className="text-meta">
-                          {entry.channelName}
+                        <TableCell className="text-meta">{entry.channelName}</TableCell>
+                        <TableCell className="max-w-40 truncate font-medium">
+                          {entry.targetUserId ? (
+                            <Link href={`/viewers/${entry.targetUserId}`} className="hover:underline">
+                              {entry.targetUserName ?? entry.targetUserId}
+                            </Link>
+                          ) : (
+                            (entry.targetUserName ?? "—")
+                          )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-xs">
                           {formatDuration(entry.durationSeconds)}
                         </TableCell>
-                        <TableCell className="max-w-sm text-xs">
-                          {entry.reason ?? "—"}
-                          {entry.deletedMessageContent && (
-                            <div className="mt-0.5 text-[var(--color-subtle)]">
-                              <ClampedContent lines={2}>„{entry.deletedMessageContent}“</ClampedContent>
-                            </div>
-                          )}
+                        <TableCell className="max-w-64 text-sm">
+                          <ModerationCell entry={entry}>
+                            <p className="truncate">{entry.reason ?? "—"}</p>
+                          </ModerationCell>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate text-sm text-[var(--color-muted-foreground)]">
+                          {entry.deletedMessageContent ?? "—"}
                         </TableCell>
                       </TableRow>
                     ))
