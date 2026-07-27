@@ -39,8 +39,9 @@ import {
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Breadcrumbs, type Crumb } from "@/components/breadcrumbs";
 import { CommandPalette, type CommandEntry } from "@/components/command-palette";
+import { NavCount } from "@/components/nav-count";
 import { ThemeSwitch } from "@/components/theme-switch";
-import { NAVIGATION, type NavItem } from "@/lib/navigation";
+import { NAVIGATION, type NavCounts, type NavItem } from "@/lib/navigation";
 import { hasPermission } from "@/lib/auth/permissions";
 import type { ThemePreference } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,8 @@ export interface AppShellUser {
 interface AppShellProps {
   user: AppShellUser;
   theme: ThemePreference;
+  /** Ungelöstes Promise – wird pro Badge in einer Suspense-Grenze aufgelöst. */
+  navCounts: Promise<NavCounts>;
   logoutAction: () => Promise<void>;
   children: React.ReactNode;
 }
@@ -112,7 +115,7 @@ function buildCrumbs(pathname: string, sections: typeof NAVIGATION): Crumb[] {
 
 const COLLAPSED_STORAGE_KEY = "tp_sidebar_collapsed";
 
-export function AppShell({ user, theme, logoutAction, children }: AppShellProps) {
+export function AppShell({ user, theme, navCounts, logoutAction, children }: AppShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [sidebarVisible, setSidebarVisible] = React.useState(true);
@@ -236,7 +239,15 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
                       )}
                     >
                       <Icon className={cn("size-5 shrink-0", active ? "opacity-100" : "opacity-80")} />
-                      <span className="truncate">{item.label}</span>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+
+                      {item.countKey && (
+                        // fallback={null}: Die Navigation soll sofort stehen,
+                        // die Zahl darf nachrücken.
+                        <React.Suspense fallback={null}>
+                          <NavCount promise={navCounts} countKey={item.countKey} active={active} />
+                        </React.Suspense>
+                      )}
                     </Link>
                   );
                 })}

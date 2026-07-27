@@ -63,6 +63,29 @@ export function formatCompact(value: number | string | null | undefined): string
   return new Intl.NumberFormat("de-DE", { notation: "compact", maximumFractionDigits: 1 }).format(num);
 }
 
+const navCountFormatter = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+
+/**
+ * Sehr kompakte Zahl für die Seitenleiste: 847 → "847", 12.400 → "12,4k",
+ * 1.200.000 → "1,2M".
+ *
+ * Bewusst kürzer als {@link formatCompact} ("12,4 Tsd."), weil in der 240 px
+ * breiten Seitenleiste neben Icon und Beschriftung kaum Platz bleibt.
+ */
+export function formatNavCount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+
+  const total = Math.floor(value);
+  if (total < 1_000) return String(total);
+
+  // Erst auf eine Nachkommastelle runden, dann die Einheit wählen – sonst wird
+  // aus 999.999 fälschlich "1000k" statt "1M".
+  const thousands = Math.round(total / 100) / 10;
+  if (thousands < 1_000) return `${navCountFormatter.format(thousands)}k`;
+
+  return `${navCountFormatter.format(Math.round(total / 100_000) / 10)}M`;
+}
+
 /**
  * Mindestgröße der Vergleichsbasis. Darunter sind Prozentwerte irreführend:
  * von 2 auf 20 sind zwar +900 %, sagen aber nichts aus.
