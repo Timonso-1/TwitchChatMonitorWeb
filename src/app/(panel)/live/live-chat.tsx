@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowDown, Pause, Play, Radio, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, Filter, Pause, Play, Radio, Trash2 } from "lucide-react";
 import { ChatName } from "@/components/chat-name";
 import { HighlightedMessage } from "@/components/highlighted-message";
 import { ChatRoleBadges } from "@/components/twitch-badges";
@@ -192,16 +192,17 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
           </Button>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={onlyHits}
-            onChange={(event) => setOnlyHits(event.target.checked)}
-            className="size-4 accent-[var(--color-warning)]"
-          />
+        <Button
+          type="button"
+          variant={onlyHits ? "default" : "outline"}
+          size="sm"
+          onClick={() => setOnlyHits((value) => !value)}
+          aria-pressed={onlyHits}
+        >
+          <Filter />
           Nur Wortfilter-Treffer
           {hitCount > 0 && <Badge variant="warning">{formatNumber(hitCount)}</Badge>}
-        </label>
+        </Button>
 
         <span className="ml-auto flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
           <span

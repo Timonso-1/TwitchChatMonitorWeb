@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { AlertTriangle, ClipboardList, Clock } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -10,8 +13,8 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { auditActionLabel } from "@/lib/audit";
-import { listAuditActions, listAuditEntries } from "@/lib/queries/accounts";
-import { formatDateTime, parsePositiveInt, parseSearchParam, truncate } from "@/lib/utils";
+import { getAuditStats, listAuditActions, listAuditEntries } from "@/lib/queries/accounts";
+import { formatDateTime, formatRelative, parsePositiveInt, parseSearchParam, truncate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Audit-Log" };
 export const dynamic = "force-dynamic";
@@ -32,9 +35,10 @@ export default async function AuditPage({
   const outcome = outcomeParam === "success" || outcomeParam === "failure" ? outcomeParam : "all";
   const page = parsePositiveInt(params.page, 1);
 
-  const [actions, { items, total }] = await Promise.all([
+  const [actions, { items, total }, stats] = await Promise.all([
     listAuditActions(),
     listAuditEntries({ actor, action, outcome, page, pageSize: PAGE_SIZE }),
+    getAuditStats(),
   ]);
 
   const activeFilters = { actor, action, outcome: outcome === "all" ? undefined : outcome };
@@ -45,6 +49,24 @@ export default async function AuditPage({
         title="Audit-Log"
         description="Lückenlose Protokollierung aller sicherheitsrelevanten Vorgänge im Panel."
       />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard label="Einträge gesamt" value={stats.total} icon={ClipboardList} accent="brand" />
+        <Link href="/audit?outcome=failure">
+          <StatCard
+            label="Fehlschläge (24 Std.)"
+            value={stats.failures24h}
+            icon={AlertTriangle}
+            accent={stats.failures24h > 0 ? "destructive" : "neutral"}
+            className="transition-colors hover:border-[var(--color-border-strong)]"
+          />
+        </Link>
+        <StatCard
+          label="Letzter Eintrag"
+          value={stats.lastEntryAt ? formatRelative(stats.lastEntryAt) : "—"}
+          icon={Clock}
+        />
+      </div>
 
       <FilterBar action="/audit" hasActiveFilters={Object.values(activeFilters).some(Boolean)}>
         <FilterField label="Akteur">
@@ -71,8 +93,7 @@ export default async function AuditPage({
         </FilterField>
       </FilterBar>
 
-      <Card>
-        <CardContent className="p-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -86,7 +107,7 @@ export default async function AuditPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={6}>Keine Einträge gefunden.</TableEmpty>
+                <TableEmpty colSpan={6} title="Keine Einträge gefunden" />
               ) : (
                 items.map((entry) => (
                   <TableRow key={entry.id}>
@@ -128,8 +149,7 @@ export default async function AuditPage({
           </Table>
 
           <Pagination basePath="/audit" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

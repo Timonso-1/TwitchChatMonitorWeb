@@ -10,11 +10,11 @@ interface StatCardProps {
   hint?: string;
   icon?: LucideIcon;
   accent?: Accent;
-  /** Prozentuale Veraenderung gegenueber der Vorperiode. */
+  /** Prozentuale Veränderung gegenüber der Vorperiode. */
   trend?: number | null;
   /** Beschreibt, worauf sich der Trend bezieht (nur als Titel-Attribut). */
   trendLabel?: string;
-  /** Groessere Darstellung fuer hervorgehobene Kennzahlen. */
+  /** Größere Darstellung für hervorgehobene Kennzahlen. */
   size?: "default" | "large";
   className?: string;
 }
@@ -31,13 +31,13 @@ const ACCENT_CLASSES: Record<Accent, string> = {
 /** Ab diesem Betrag wird der Wert gedeckelt statt ausgeschrieben. */
 const TREND_CAP = 999;
 
-/** Kleines Abzeichen mit Auf- oder Abwaertstrend. */
+/** Kleines Abzeichen mit Auf- oder Abwärtstrend. */
 function TrendBadge({ value, label }: { value: number; label?: string }) {
   const rising = value > 0;
   const flat = value === 0;
   const Icon = flat ? Minus : rising ? TrendingUp : TrendingDown;
 
-  // Extremwerte entstehen bei kleiner Vergleichsbasis – lieber deckeln als irrefuehren.
+  // Extremwerte entstehen bei kleiner Vergleichsbasis – lieber deckeln als irreführen.
   const capped = Math.abs(value) > TREND_CAP;
   const text = capped ? `${value > 0 ? ">+" : "<−"}${TREND_CAP} %` : `${value > 0 ? "+" : ""}${value} %`;
 

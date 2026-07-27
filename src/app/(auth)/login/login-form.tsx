@@ -14,7 +14,7 @@ export function LoginForm({ twoFactorEnforced }: { twoFactorEnforced: boolean })
   const [state, formAction] = useActionState(loginAction, IDLE_STATE);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-5">
       {state.status === "error" && state.message && (
         <Alert variant="destructive" role="alert">
           {state.message}

@@ -5,7 +5,7 @@ import { fieldClasses } from "./input";
 
 /**
  * Bewusst ein natives <select>: es funktioniert ohne JavaScript und
- * laesst sich damit direkt in serverseitigen GET-Formularen verwenden.
+ * lässt sich damit direkt in serverseitigen GET-Formularen verwenden.
  */
 const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, children, ...props }, ref) => (

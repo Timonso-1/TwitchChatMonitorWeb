@@ -33,7 +33,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   const isSuperadmin = session.user.permissions.includes("*");
   const isSelf = account.uuid === session.user.uuid;
-  // Accounts mit gleicher oder hoeherer Stufe duerfen nicht bearbeitet werden.
+  // Accounts mit gleicher oder höherer Stufe dürfen nicht bearbeitet werden.
   const outranked = !isSuperadmin && !isSelf && account.maxPriority >= session.user.maxPriority;
 
   const canUpdate = hasPermission(session.user.permissions, PERMISSIONS.ACCOUNTS_UPDATE) && !outranked;
@@ -128,7 +128,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                 </TableHeader>
                 <TableBody>
                   {account.sessions.length === 0 ? (
-                    <TableEmpty colSpan={5}>Keine aktiven Sitzungen.</TableEmpty>
+                    <TableEmpty colSpan={5} title="Keine aktiven Sitzungen" />
                   ) : (
                     account.sessions.map((entry) => (
                       <TableRow key={entry.id}>

@@ -6,14 +6,14 @@ import { isTwitchLinkEnforced, isTwitchOAuthConfigured } from "./twitch-oauth";
 
 /** Wird geworfen, wenn eine Server Action ohne ausreichende Rechte aufgerufen wird. */
 export class AuthorizationError extends Error {
-  constructor(message = "Keine Berechtigung fuer diese Aktion.") {
+  constructor(message = "Keine Berechtigung für diese Aktion.") {
     super(message);
     this.name = "AuthorizationError";
   }
 }
 
 /**
- * Stellt sicher, dass eine vollstaendig authentifizierte Session existiert
+ * Stellt sicher, dass eine vollständig authentifizierte Session existiert
  * (inklusive abgeschlossenem 2FA-Schritt). Leitet sonst weiter.
  */
 export async function requireSession(): Promise<ActiveSession> {
@@ -35,7 +35,7 @@ export async function requireSession(): Promise<ActiveSession> {
     redirect("/change-password");
   }
 
-  // Twitch-Verknuepfung ist der letzte Pflichtschritt der Einrichtung.
+  // Twitch-Verknüpfung ist der letzte Pflichtschritt der Einrichtung.
   if (!session.user.twitchUserId && isTwitchLinkEnforced() && isTwitchOAuthConfigured()) {
     redirect("/link-twitch");
   }
@@ -43,7 +43,7 @@ export async function requireSession(): Promise<ActiveSession> {
   return session;
 }
 
-/** Wie `requireSession`, erzwingt zusaetzlich ein bestimmtes Recht. */
+/** Wie `requireSession`, erzwingt zusätzlich ein bestimmtes Recht. */
 export async function requirePermission(permission: Permission): Promise<ActiveSession> {
   const session = await requireSession();
 
@@ -66,8 +66,8 @@ export async function requireAnyPermission(permissions: readonly Permission[]): 
 }
 
 /**
- * Variante fuer Server Actions: wirft statt weiterzuleiten,
- * damit der Fehler als Formular-Ergebnis zurueckgegeben werden kann.
+ * Variante für Server Actions: wirft statt weiterzuleiten,
+ * damit der Fehler als Formular-Ergebnis zurückgegeben werden kann.
  */
 export async function assertPermission(permission: Permission): Promise<ActiveSession> {
   const session = await getSession();
@@ -79,13 +79,13 @@ export async function assertPermission(permission: Permission): Promise<ActiveSe
     throw new AuthorizationError("Zwei-Faktor-Authentifizierung nicht abgeschlossen.");
   }
   if (!hasPermission(session.user.permissions, permission)) {
-    throw new AuthorizationError("Keine Berechtigung fuer diese Aktion.");
+    throw new AuthorizationError("Keine Berechtigung für diese Aktion.");
   }
 
   return session;
 }
 
-/** Session ohne Rechtepruefung, aber mit Login-Zwang (fuer Profil/Logout). */
+/** Session ohne Rechteprüfung, aber mit Login-Zwang (für Profil/Logout). */
 export async function assertAuthenticated(): Promise<ActiveSession> {
   const session = await getSession();
   if (!session) {
@@ -96,7 +96,7 @@ export async function assertAuthenticated(): Promise<ActiveSession> {
 
 /**
  * Verhindert Rechte-Eskalation: ein Nutzer darf nur Accounts oder Rollen
- * bearbeiten, deren hoechste Prioritaet unter seiner eigenen liegt.
+ * bearbeiten, deren höchste Priorität unter seiner eigenen liegt.
  * Superadmins (Wildcard) sind ausgenommen.
  */
 export function canManagePriority(session: ActiveSession, targetPriority: number): boolean {

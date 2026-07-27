@@ -15,8 +15,8 @@ import {
 } from "drizzle-orm/mysql-core";
 
 /**
- * Panel-eigene Tabellen fuer Authentifizierung, Rollen und Auditierung.
- * Bewusst mit Praefix `admin_`, damit es keine Kollision mit den Twitch-Tabellen gibt.
+ * Panel-eigene Tabellen für Authentifizierung, Rollen und Auditierung.
+ * Bewusst mit Präfix `admin_`, damit es keine Kollision mit den Twitch-Tabellen gibt.
  */
 
 export const adminUsers = mysqlTable(
@@ -27,7 +27,7 @@ export const adminUsers = mysqlTable(
     username: varchar("username", { length: 64 }).notNull(),
     displayName: varchar("display_name", { length: 96 }),
     passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-    /** AES-256-GCM verschluesseltes TOTP-Secret (Format: iv:tag:ciphertext, base64url). */
+    /** AES-256-GCM verschlüsseltes TOTP-Secret (Format: iv:tag:ciphertext, base64url). */
     totpSecret: varchar("totp_secret", { length: 512 }),
     totpEnabled: boolean("totp_enabled").notNull().default(false),
     totpConfirmedAt: datetime("totp_confirmed_at"),
@@ -63,14 +63,14 @@ export const adminRoles = mysqlTable(
   "admin_roles",
   {
     uuid: char("uuid", { length: 36 }).notNull(),
-    /** Technischer Schluessel, z. B. "superadmin". Unveraenderlich bei Systemrollen. */
+    /** Technischer Schlüssel, z. B. "superadmin". Unveränderlich bei Systemrollen. */
     key: varchar("key", { length: 64 }).notNull(),
     name: varchar("name", { length: 96 }).notNull(),
     description: varchar("description", { length: 255 }),
-    /** Hoehere Zahl = maechtigere Rolle. Verhindert Rechte-Eskalation nach oben. */
+    /** Höhere Zahl = mächtigere Rolle. Verhindert Rechte-Eskalation nach oben. */
     priority: int("priority").notNull().default(0),
     color: varchar("color", { length: 16 }).notNull().default("#8b5cf6"),
-    /** Systemrollen koennen nicht geloescht werden. */
+    /** Systemrollen können nicht gelöscht werden. */
     isSystem: boolean("is_system").notNull().default(false),
     createdAt: datetime("created_at").notNull(),
     updatedAt: datetime("updated_at").notNull(),
@@ -148,8 +148,8 @@ export const adminRecoveryCodes = mysqlTable(
 
 /**
  * Interne Notizen zu Twitch-Zuschauern.
- * Bezug ueber die Twitch-User-ID, damit Notizen auch dann erhalten bleiben,
- * wenn der Nutzer seinen Namen aendert.
+ * Bezug über die Twitch-User-ID, damit Notizen auch dann erhalten bleiben,
+ * wenn der Nutzer seinen Namen ändert.
  */
 export const adminViewerNotes = mysqlTable(
   "admin_viewer_notes",
@@ -157,7 +157,7 @@ export const adminViewerNotes = mysqlTable(
     id: bigint("id", { mode: "number" }).autoincrement().notNull(),
     /** Twitch-User-ID (entspricht users.user_id). */
     viewerUserId: varchar("viewer_user_id", { length: 32 }).notNull(),
-    /** Denormalisiert, damit die Notiz auch nach Namensaenderung zuordenbar bleibt. */
+    /** Denormalisiert, damit die Notiz auch nach Namensänderung zuordenbar bleibt. */
     viewerUserName: varchar("viewer_user_name", { length: 64 }),
     content: text("content").notNull(),
     /** "info" | "warning" | "critical" */
@@ -177,7 +177,7 @@ export const adminViewerNotes = mysqlTable(
 );
 
 /**
- * Zwischenspeicher fuer Profildaten aus der Twitch-Helix-API.
+ * Zwischenspeicher für Profildaten aus der Twitch-Helix-API.
  * Vermeidet, dass bei jedem Seitenaufruf erneut angefragt wird.
  */
 export const adminViewerProfiles = mysqlTable(
@@ -194,7 +194,7 @@ export const adminViewerProfiles = mysqlTable(
     twitchCreatedAt: datetime("twitch_created_at"),
     /** Zeitpunkt des letzten erfolgreichen Abrufs. */
     fetchedAt: datetime("fetched_at").notNull(),
-    /** true, wenn die API den Account nicht mehr kennt (geloescht oder gesperrt). */
+    /** true, wenn die API den Account nicht mehr kennt (gelöscht oder gesperrt). */
     notFound: boolean("not_found").notNull().default(false),
   },
   (table) => [

@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const preference = isThemePreference(raw) ? raw : "system";
 
   // Bei einer expliziten Wahl kann die Klasse direkt serverseitig gesetzt werden.
-  // Bei "system" ergaenzt sie das Inline-Skript vor dem ersten Paint.
+  // Bei "system" ergänzt sie das Inline-Skript vor dem ersten Paint.
   const initialClass = preference === "light" ? "light" : "dark";
 
   return (

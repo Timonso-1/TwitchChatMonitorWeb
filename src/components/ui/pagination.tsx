@@ -10,9 +10,9 @@ interface PaginationProps {
   page: number;
   pageSize: number;
   total: number;
-  /** Name des Seiten-Parameters – noetig, wenn mehrere Listen auf einer Seite blaettern. */
+  /** Name des Seiten-Parameters – nötig, wenn mehrere Listen auf einer Seite blättern. */
   pageParam?: string;
-  /** Bezeichnung der Eintraege, z. B. "Nachrichten". */
+  /** Bezeichnung der Einträge, z. B. "Nachrichten". */
   itemLabel?: string;
 }
 

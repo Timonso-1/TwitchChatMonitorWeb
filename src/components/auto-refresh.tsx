@@ -9,12 +9,12 @@ import { cn } from "@/lib/utils";
 /**
  * Automatische Aktualisierung serverseitig gerenderter Seiten.
  *
- * `router.refresh()` laesst Next.js die Server Components neu rendern –
- * damit werden alle Datenbankabfragen der Seite erneut ausgefuehrt und
+ * `router.refresh()` lässt Next.js die Server Components neu rendern –
+ * damit werden alle Datenbankabfragen der Seite erneut ausgeführt und
  * Kennzahlen, Tabellen und Diagramme sind wieder aktuell. Der bestehende
  * Scrollzustand und Formulareingaben bleiben dabei erhalten.
  *
- * Bewusst standardmaessig AUS: jede Aktualisierung kostet einen kompletten
+ * Bewusst standardmäßig AUS: jede Aktualisierung kostet einen kompletten
  * Satz Datenbankabfragen. Wer sie braucht, schaltet sie gezielt ein.
  */
 

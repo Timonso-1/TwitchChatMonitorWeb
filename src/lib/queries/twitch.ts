@@ -2,6 +2,7 @@ import "server-only";
 import { and, count, desc, eq, gte, inArray, like, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { events, messages, moderationActions, viewers } from "@/lib/db/schema";
+import { roleFilterBadge } from "@/lib/twitch-tags";
 
 /** Wandelt einen Datums-String aus einem Formular in ein Date um. */
 function parseDate(value: string | undefined, endOfDay = false): Date | undefined {
@@ -18,7 +19,8 @@ export interface MessageFilters {
   channelUuid?: string;
   user?: string;
   content?: string;
-  role?: "all" | "mod" | "subscriber" | "vip" | "broadcaster" | "first";
+  /** Rolle oder Abzeichen – siehe MESSAGE_ROLE_FILTERS. */
+  role?: string;
   from?: string;
   to?: string;
   page: number;
@@ -29,12 +31,16 @@ export interface MessageListItem {
   id: number;
   messageId: string;
   channelName: string;
+  /** Broadcaster-ID des Channels – nötig für die kanaleigenen Abzeichen. */
+  channelId: string;
   userId: string;
   userName: string;
   displayName: string | null;
   color: string | null;
   content: string;
   emotes: string | null;
+  /** Roher `badges`-Tag, z. B. "moderator/1,subscriber/12". */
+  badges: string | null;
   badgeInfo: string | null;
   replyToMessageId: string | null;
   bits: number;
@@ -60,24 +66,32 @@ function buildMessageConditions(filters: MessageFilters): SQL | undefined {
 
   if (filters.content) conditions.push(like(messages.content, `%${filters.content}%`));
 
-  switch (filters.role) {
-    case "mod":
-      conditions.push(eq(messages.isMod, true));
-      break;
-    case "subscriber":
-      conditions.push(eq(messages.isSubscriber, true));
-      break;
-    case "vip":
-      conditions.push(eq(messages.isVip, true));
-      break;
-    case "broadcaster":
-      conditions.push(eq(messages.isBroadcaster, true));
-      break;
-    case "first":
-      conditions.push(eq(messages.isFirstMessage, true));
-      break;
-    default:
-      break;
+  const badge = filters.role ? roleFilterBadge(filters.role) : null;
+
+  if (badge) {
+    // Der rohe Tag sieht aus wie "moderator/1,subscriber/12". Die
+    // Wortgrenze verhindert, dass "founder" auch in "cofounder" trifft.
+    conditions.push(sql`${messages.badges} REGEXP ${`(^|,)${badge}/`}`);
+  } else {
+    switch (filters.role) {
+      case "mod":
+        conditions.push(eq(messages.isMod, true));
+        break;
+      case "subscriber":
+        conditions.push(eq(messages.isSubscriber, true));
+        break;
+      case "vip":
+        conditions.push(eq(messages.isVip, true));
+        break;
+      case "broadcaster":
+        conditions.push(eq(messages.isBroadcaster, true));
+        break;
+      case "first":
+        conditions.push(eq(messages.isFirstMessage, true));
+        break;
+      default:
+        break;
+    }
   }
 
   const from = parseDate(filters.from);
@@ -101,12 +115,14 @@ export async function listMessages(filters: MessageFilters): Promise<{
       id: messages.id,
       messageId: messages.messageId,
       channelName: messages.channelName,
+      channelId: messages.channelId,
       userId: messages.userId,
       userName: messages.userName,
       displayName: messages.displayName,
       color: messages.color,
       content: messages.content,
       emotes: messages.emotes,
+      badges: messages.badges,
       badgeInfo: messages.badgeInfo,
       replyToMessageId: messages.replyToMessageId,
       bits: messages.bits,
@@ -128,20 +144,23 @@ export async function listMessages(filters: MessageFilters): Promise<{
 }
 
 export interface MessageContext {
-  /** Nachrichten-IDs, zu denen eine Loeschung vorliegt. */
+  /** Nachrichten-IDs, zu denen eine Löschung vorliegt. */
   deletedIds: Set<string>;
   /** Ursprungsnachrichten zu Antworten: message_id → Vorschau. */
   replyTargets: Map<string, { userName: string; content: string }>;
 }
 
 /**
- * Ergaenzt eine Nachrichtenliste um Zusatzinformationen aus anderen Tabellen:
- * welche Nachrichten geloescht wurden und worauf Antworten sich beziehen.
+ * Ergänzt eine Nachrichtenliste um Zusatzinformationen aus anderen Tabellen:
+ * welche Nachrichten gelöscht wurden und worauf Antworten sich beziehen.
  *
  * Bewusst als separate Abfrage statt als JOIN – so bleibt die Hauptabfrage
  * schlank und die Zusatzinfos lassen sich bei Bedarf weglassen.
  */
-export async function getMessageContext(items: MessageListItem[]): Promise<MessageContext> {
+/** Nur die Felder, die Kontextabfragen wirklich brauchen. */
+export type MessageContextItem = Pick<MessageListItem, "messageId" | "replyToMessageId">;
+
+export async function getMessageContext(items: MessageContextItem[]): Promise<MessageContext> {
   const messageIds = items.map((item) => item.messageId).filter(Boolean);
   const replyIds = items.map((item) => item.replyToMessageId).filter((id): id is string => Boolean(id));
 
@@ -191,8 +210,8 @@ export interface ConversationEntry {
 }
 
 /**
- * Laedt eine Antwortkette: die Ursprungsnachricht und alle direkten Antworten.
- * Twitch verweist immer auf die urspruengliche Nachricht, nicht auf die
+ * Lädt eine Antwortkette: die Ursprungsnachricht und alle direkten Antworten.
+ * Twitch verweist immer auf die ursprüngliche Nachricht, nicht auf die
  * jeweils vorherige Antwort – die Kette ist also flach.
  */
 export async function getConversation(messageId: string): Promise<ConversationEntry[]> {
@@ -263,7 +282,7 @@ export async function getConversation(messageId: string): Promise<ConversationEn
   return entries;
 }
 
-/** Liefert Nachrichten fuer den CSV-Export (ohne Pagination, mit hartem Limit). */
+/** Liefert Nachrichten für den CSV-Export (ohne Pagination, mit hartem Limit). */
 export async function exportMessages(filters: Omit<MessageFilters, "page" | "pageSize">, limit = 10_000) {
   const where = buildMessageConditions({ ...filters, page: 1, pageSize: limit });
 
@@ -354,7 +373,7 @@ export async function listEvents(filters: EventFilters): Promise<{ items: EventL
   return { items, total: totalRow?.value ?? 0 };
 }
 
-/** Distinct-Liste aller vorkommenden Event-Typen fuer den Filter. */
+/** Distinct-Liste aller vorkommenden Event-Typen für den Filter. */
 export async function listEventTypes(): Promise<string[]> {
   const rows = await db
     .selectDistinct({ eventType: events.eventType })

@@ -11,7 +11,7 @@ interface HighlightedMessageProps {
 
 /**
  * Zeigt eine Chatnachricht und hebt Treffer des Wortfilters hervor.
- * Ohne Treffer wird der Text unveraendert ausgegeben.
+ * Ohne Treffer wird der Text unverändert ausgegeben.
  */
 export function HighlightedMessage({ content, matches, isAction, className }: HighlightedMessageProps) {
   const segments = splitByMatches(content, matches);

@@ -44,7 +44,7 @@ function parseForm(formData: FormData) {
   };
 }
 
-/** Prueft ein selbst geschriebenes Muster, bevor es gespeichert wird. */
+/** Prüft ein selbst geschriebenes Muster, bevor es gespeichert wird. */
 function validatePattern(term: string, matchType: string): string | null {
   if (matchType !== "regex") return null;
 

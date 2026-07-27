@@ -29,7 +29,7 @@ import { formatCompact } from "@/lib/utils";
 interface ComposedChartProps<T extends object> {
   data: T[];
   xKey: string;
-  /** Als Flaeche dargestellte Serie – meist der kumulierte Verlauf. */
+  /** Als Fläche dargestellte Serie – meist der kumulierte Verlauf. */
   areaSeries: SeriesConfig;
   /** Als Linie dargestellte Serie – meist der tageweise Zuwachs. */
   lineSeries?: SeriesConfig;
@@ -39,7 +39,7 @@ interface ComposedChartProps<T extends object> {
   valueFormat?: ValueFormat;
   emptyMessage?: string;
   /**
-   * Y-Achse nicht bei null beginnen lassen. Sinnvoll fuer kumulierte Werte,
+   * Y-Achse nicht bei null beginnen lassen. Sinnvoll für kumulierte Werte,
    * bei denen sonst die gesamte Kurve flach wirkt.
    */
   areaAxisFromMin?: boolean;
@@ -48,8 +48,8 @@ interface ComposedChartProps<T extends object> {
 }
 
 /**
- * Kombiniert Flaeche und Linie mit getrennten Y-Achsen –
- * z. B. Gesamtbestand gegen taeglichen Zuwachs.
+ * Kombiniert Fläche und Linie mit getrennten Y-Achsen –
+ * z. B. Gesamtbestand gegen täglichen Zuwachs.
  */
 export function ComposedChart<T extends object>({
   data,

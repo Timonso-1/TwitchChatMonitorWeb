@@ -3,7 +3,8 @@ import { ChartCard } from "@/components/chart-card";
 import { AreaChart } from "@/components/charts";
 import { RangeSelector } from "@/components/range-selector";
 import { StatCard } from "@/components/stat-card";
-import type { DailyPoint } from "@/lib/queries/trends";
+import type { TrendPoint } from "@/lib/queries/trends";
+import { rangeSentence, type RangePreset, type ResolvedRange } from "@/lib/range";
 import { percentChange } from "@/lib/utils";
 
 interface ListTrendHeaderProps {
@@ -11,13 +12,12 @@ interface ListTrendHeaderProps {
   basePath: string;
   /** Aktive Filter, die beim Zeitraumwechsel erhalten bleiben. */
   params: Record<string, string | number | undefined | null>;
-  rangeOptions: ReadonlyArray<{ value: number; label: string }>;
-  range: number;
-  rangeLabel: string;
+  presets: readonly RangePreset[];
+  range: ResolvedRange;
 
   title: string;
   description: string;
-  points: DailyPoint[];
+  points: TrendPoint[];
   seriesLabel: string;
   seriesColor: "chart-1" | "chart-2" | "chart-3" | "chart-4" | "chart-5";
 
@@ -35,15 +35,14 @@ interface ListTrendHeaderProps {
 }
 
 /**
- * Wiederverwendbarer Kopfbereich der Listenseiten:
+ * Wiederverwendbarer Lead der Listenseiten:
  * Verlaufsdiagramm mit Zeitraumwahl links, zwei Kennzahlen rechts.
  */
 export function ListTrendHeader({
   basePath,
   params,
-  rangeOptions,
+  presets,
   range,
-  rangeLabel,
   title,
   description,
   points,
@@ -59,32 +58,30 @@ export function ListTrendHeader({
   totalIcon: TotalIcon,
   accent = "brand",
 }: ListTrendHeaderProps) {
-  // Ohne vollstaendige Vorperiode waere jeder Prozentwert irrefuehrend.
+  // Ohne vollständige Vorperiode wäre jeder Prozentwert irreführend.
   const trend = comparable ? percentChange(currentValue, previousValue) : null;
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
       <ChartCard
         title={title}
-        description={`${description} · ${rangeLabel}`}
-        actions={
-          <RangeSelector basePath={basePath} params={params} options={rangeOptions} current={range} />
-        }
+        description={`${description} in ${rangeSentence(range)}.`}
+        actions={<RangeSelector basePath={basePath} params={params} presets={presets} range={range} />}
       >
         <AreaChart
           data={points}
           xKey="bucket"
           series={[{ key: "value", label: seriesLabel, color: seriesColor }]}
-          height={200}
-          xFormat="date"
-          labelFormat="weekday-long"
-          xLabel="Datum"
+          height={240}
+          xFormat={range.hourly ? "time" : "date"}
+          labelFormat={range.hourly ? "datetime" : "weekday-long"}
+          xLabel={range.hourly ? "Uhrzeit" : "Datum"}
           yLabel={seriesLabel}
-          emptyMessage={`Keine Einträge in den letzten ${rangeLabel.toLowerCase()}.`}
+          emptyMessage={`Keine Einträge in ${rangeSentence(range)}.`}
         />
       </ChartCard>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
         <StatCard
           label={currentLabel}
           value={currentValue}
@@ -93,7 +90,7 @@ export function ListTrendHeader({
           accent={accent}
           size="large"
           trend={trend}
-          trendLabel={`Vergleich mit den vorherigen ${rangeLabel.toLowerCase()}`}
+          trendLabel="Vergleich mit dem gleich langen Zeitraum davor"
         />
         <StatCard label={totalLabel} value={totalValue} icon={TotalIcon} size="large" />
       </div>

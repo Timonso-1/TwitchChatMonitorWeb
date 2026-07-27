@@ -135,7 +135,7 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     return genericError;
   }
 
-  // Erfolgreiche Passwortpruefung.
+  // Erfolgreiche Passwortprüfung.
   await db
     .update(adminUsers)
     .set({ failedLoginAttempts: 0, lockedUntil: null, updatedAt: now })
@@ -268,7 +268,7 @@ const confirmSchema = z.object({
     .regex(/^\d{6}$/, "Bitte den sechsstelligen Code aus deiner App eingeben."),
 });
 
-/** Bestaetigt das 2FA-Setup und gibt die Recovery-Codes einmalig zurueck. */
+/** Bestätigt das 2FA-Setup und gibt die Recovery-Codes einmalig zurück. */
 export async function confirmTwoFactorSetup(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -315,7 +315,7 @@ export async function confirmTwoFactorSetup(_prev: ActionState, formData: FormDa
   return successState("Zwei-Faktor-Authentifizierung ist aktiv.", { recoveryCodes });
 }
 
-/** Erzeugt neue Recovery-Codes fuer den angemeldeten Nutzer. */
+/** Erzeugt neue Recovery-Codes für den angemeldeten Nutzer. */
 export async function regenerateOwnRecoveryCodes(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -407,7 +407,7 @@ export async function changeOwnPassword(_prev: ActionState, formData: FormData):
     })
     .where(eq(adminUsers.uuid, session.userUuid));
 
-  // Alle anderen Geraete abmelden.
+  // Alle anderen Geräte abmelden.
   await destroyAllSessionsForUser(session.userUuid, session.id);
 
   await writeAudit({
@@ -419,7 +419,7 @@ export async function changeOwnPassword(_prev: ActionState, formData: FormData):
   return successState("Passwort geändert. Alle anderen Sitzungen wurden beendet.");
 }
 
-/** Deaktiviert 2FA fuer den eigenen Account (nur wenn nicht erzwungen). */
+/** Deaktiviert 2FA für den eigenen Account (nur wenn nicht erzwungen). */
 export async function disableOwnTwoFactor(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -476,7 +476,7 @@ export async function revokeOwnSession(formData: FormData): Promise<void> {
 
   const sessionId = String(formData.get("sessionId") ?? "");
 
-  // Die aktuelle Sitzung kann hier nicht beendet werden – dafuer gibt es "Abmelden".
+  // Die aktuelle Sitzung kann hier nicht beendet werden – dafür gibt es "Abmelden".
   if (!sessionId || sessionId === session.id) return;
 
   await db

@@ -6,8 +6,8 @@ export interface TwoFactorSetupData {
   /** Klartext-Secret zur Anzeige (QR-Code / manuelle Eingabe). */
   secret: string;
   /**
-   * Verschluesselte Fassung des Secrets fuer das versteckte Formularfeld.
-   * Manipulation faellt beim Entschluesseln durch den GCM-Auth-Tag auf.
+   * Verschlüsselte Fassung des Secrets für das versteckte Formularfeld.
+   * Manipulation fällt beim Entschlüsseln durch den GCM-Auth-Tag auf.
    */
   secretToken: string;
   qrCode: string;
@@ -16,7 +16,7 @@ export interface TwoFactorSetupData {
 /**
  * Erzeugt ein neues TOTP-Secret samt QR-Code.
  * Es wird bewusst NICHT in der Datenbank gespeichert – das passiert erst,
- * wenn der Nutzer das Setup mit einem gueltigen Code bestaetigt.
+ * wenn der Nutzer das Setup mit einem gültigen Code bestätigt.
  */
 export async function createTwoFactorSetup(accountLabel: string): Promise<TwoFactorSetupData> {
   const secret = generateTotpSecret();

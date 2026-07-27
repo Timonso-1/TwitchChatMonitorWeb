@@ -13,7 +13,7 @@ const ICONS: Record<ThemePreference, typeof Sun> = {
 };
 
 /**
- * Segmentierter Umschalter fuer das Theme.
+ * Segmentierter Umschalter für das Theme.
  * Wendet die Klasse sofort im Browser an und speichert die Wahl
  * parallel per Server Action im Cookie.
  */

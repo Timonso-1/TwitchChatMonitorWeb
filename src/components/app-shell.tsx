@@ -122,7 +122,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
     setMobileOpen(false);
   }, [pathname]);
 
-  // Eingeklappte Gruppen ueber Seitenwechsel hinweg merken.
+  // Eingeklappte Gruppen über Seitenwechsel hinweg merken.
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
@@ -175,15 +175,17 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   const brand = (
     <Link
       href="/dashboard"
-      className="flex shrink-0 items-center gap-2.5 border-b border-[var(--color-border)] px-3 py-2.5 transition-colors hover:bg-[var(--color-background)]"
+      className="flex shrink-0 items-center gap-3 border-b border-[var(--color-border)] px-3 py-3 transition-colors hover:bg-[var(--color-surface)]"
     >
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#9147ff]">
-        <Twitch className="size-4 text-white" />
-      </div>
-      <div className="min-w-0 leading-tight">
-        <p className="truncate text-base font-bold tracking-tight text-[var(--color-foreground)]">TwitchPanel</p>
-        <p className="truncate text-xs text-[var(--color-subtle)]">Chat-Monitor</p>
-      </div>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)]">
+        <Twitch className="size-5" />
+      </span>
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate text-lg font-bold tracking-tight text-[var(--color-foreground)]">
+          TwitchPanel
+        </span>
+        <span className="block truncate text-xs text-[var(--color-subtle)]">Chat-Monitor</span>
+      </span>
     </Link>
   );
 
@@ -248,12 +250,12 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
 
   /** Account-Block am Fuss der Seitenleiste. */
   const accountBlock = (
-    <div className="shrink-0 border-t border-[var(--color-border)] p-2.5">
+    <div className="shrink-0 border-t border-[var(--color-border)] p-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-[var(--color-background)]"
+            className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-[var(--color-border)] hover:bg-[var(--color-surface)]"
           >
             {user.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -261,10 +263,10 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
                 src={user.avatarUrl}
                 alt=""
                 aria-hidden
-                className="size-7 shrink-0 rounded-md object-cover"
+                className="size-9 shrink-0 rounded-lg object-cover ring-1 ring-[var(--color-border)]"
               />
             ) : (
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--color-secondary)] text-[0.65rem] font-semibold">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)] text-xs font-semibold ring-1 ring-[var(--color-border)]">
                 {initials}
               </span>
             )}
@@ -280,44 +282,73 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent side="top" align="start" className="w-64 p-0">
-          {/* Kopf mit Avatar, damit das Menü nicht wie eine lose Liste wirkt. */}
-          <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] p-3">
-            {user.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" aria-hidden className="size-9 shrink-0 rounded-md object-cover" />
-            ) : (
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-secondary)] text-xs font-semibold">
-                {initials}
-              </span>
-            )}
+        <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-[17.5rem] overflow-hidden p-0">
+          <div className="relative overflow-hidden border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 80% 70% at 10% 0%, color-mix(in srgb, var(--color-brand) 12%, transparent), transparent 65%)",
+              }}
+            />
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{displayName}</p>
-              <p className="truncate text-xs text-[var(--color-muted-foreground)]">{user.email}</p>
+            <div className="relative space-y-3 p-4">
+              <div className="flex items-start gap-3">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatarUrl}
+                    alt=""
+                    aria-hidden
+                    className="size-12 shrink-0 rounded-xl object-cover ring-1 ring-[var(--color-border)]"
+                  />
+                ) : (
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-sm font-semibold ring-1 ring-[var(--color-border)]">
+                    {initials}
+                  </span>
+                )}
 
-              {user.roles.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1.5">
-                  {user.roles.map((role) => (
-                    <span
-                      key={role.uuid}
-                      className="rounded px-1.5 py-0.5 text-[0.65rem] font-medium"
-                      style={{ backgroundColor: `${role.color}22`, color: role.color }}
-                    >
-                      {role.name}
-                    </span>
-                  ))}
+                <div className="min-w-0 flex-1 space-y-1 pt-0.5">
+                  <p className="truncate text-sm font-semibold tracking-tight">{displayName}</p>
+                  <p className="truncate text-xs text-[var(--color-muted-foreground)]">{user.email}</p>
+                  {user.twitchLogin && (
+                    <p className="truncate text-xs text-[var(--color-subtle)]">@{user.twitchLogin}</p>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {user.roles.map((role) => (
+                  <span
+                    key={role.uuid}
+                    className="rounded px-1.5 py-0.5 text-[0.65rem] font-medium"
+                    style={{ backgroundColor: `${role.color}22`, color: role.color }}
+                  >
+                    {role.name}
+                  </span>
+                ))}
+                {user.totpEnabled ? (
+                  <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.65rem] font-medium text-[var(--color-success)] bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)]">
+                    <ShieldCheck className="size-3" />
+                    2FA
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.65rem] font-medium text-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)]">
+                    <ShieldAlert className="size-3" />
+                    2FA fehlt
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="border-b border-[var(--color-border)] p-3">
-            <p className="pb-1.5 text-xs font-medium text-[var(--color-muted-foreground)]">Erscheinungsbild</p>
+          <div className="space-y-2 border-b border-[var(--color-border)] p-3.5">
+            <p className="text-xs font-medium text-[var(--color-muted-foreground)]">Erscheinungsbild</p>
             <ThemeSwitch value={theme} withLabels />
           </div>
 
-          <div className="p-1">
+          <div className="p-1.5">
             <DropdownMenuItem asChild>
               <Link href="/profile">
                 <ShieldCheck />
@@ -327,14 +358,22 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem asChild destructive>
-              <form action={logoutAction} className="w-full">
+            {/* Form muss aussen bleiben; onSelect preventDefault hält das Menü
+                offen, sonst unmountet Radix die Form vor dem Server-Action-Submit. */}
+            <form action={logoutAction} className="w-full">
+              <DropdownMenuItem
+                asChild
+                destructive
+                onSelect={(event) => {
+                  event.preventDefault();
+                }}
+              >
                 <button type="submit" className="flex w-full items-center gap-2">
                   <LogOut />
                   Abmelden
                 </button>
-              </form>
-            </DropdownMenuItem>
+              </DropdownMenuItem>
+            </form>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -345,7 +384,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
     <>
       {brand}
 
-      {/* Die Navigation traegt den Scrollbereich; der Account-Block bleibt unten sichtbar. */}
+      {/* Die Navigation trägt den Scrollbereich; der Account-Block bleibt unten sichtbar. */}
       {navigation}
 
       {!user.totpEnabled && (
@@ -365,9 +404,9 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
   );
 
   return (
-    <div className="flex min-h-dvh bg-[var(--color-background)]">
+    <div className="flex h-dvh gap-2 bg-[var(--color-surface)] p-2">
       {sidebarVisible && (
-        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] lg:flex">
+        <aside className="hidden h-full w-60 shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-panel lg:flex">
           {sidebarInner}
         </aside>
       )}
@@ -380,7 +419,7 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
             className="absolute inset-0 bg-[hsl(0_0%_0%/0.55)]"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative flex h-full w-60 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)]">
+          <aside className="relative m-2 flex h-[calc(100%-1rem)] w-60 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-panel">
             <Button
               variant="ghost"
               size="icon"
@@ -394,8 +433,9 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-background)]/90 px-3 backdrop-blur sm:px-4">
+      {/* Abgerundete Inhaltsfläche rechts neben der Sidebar */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-panel">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-background)]/90 px-3 backdrop-blur sm:px-4">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)}>
             <Menu />
             <span className="sr-only">Menü öffnen</span>
@@ -432,7 +472,9 @@ export function AppShell({ user, theme, logoutAction, children }: AppShellProps)
           </div>
         </header>
 
-        <main className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 space-y-5 p-4 sm:p-6">{children}</main>
+        <main className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 space-y-5 overflow-y-auto scrollbar-thin p-4 sm:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

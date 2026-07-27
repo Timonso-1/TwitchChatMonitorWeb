@@ -37,7 +37,7 @@ export async function buildQrCodeDataUrl(otpauthUrl: string): Promise<string> {
   });
 }
 
-/** Prueft einen 6-stelligen TOTP-Code gegen das verschluesselte Secret. */
+/** Prüft einen 6-stelligen TOTP-Code gegen das verschlüsselte Secret. */
 export function verifyTotpCode(encryptedSecret: string, code: string): boolean {
   const normalized = code.replace(/\s+/g, "");
   if (!/^\d{6}$/.test(normalized)) return false;
@@ -50,7 +50,7 @@ export function verifyTotpCode(encryptedSecret: string, code: string): boolean {
   }
 }
 
-/** Prueft einen Code gegen ein noch unverschluesseltes Secret (Setup-Vorgang). */
+/** Prüft einen Code gegen ein noch unverschlüsseltes Secret (Setup-Vorgang). */
 export function verifyTotpCodeRaw(secret: string, code: string): boolean {
   const normalized = code.replace(/\s+/g, "");
   if (!/^\d{6}$/.test(normalized)) return false;
@@ -62,7 +62,7 @@ export function verifyTotpCodeRaw(secret: string, code: string): boolean {
   }
 }
 
-/** Format: XXXX-XXXX-XXXX (Crockford-aehnliches Alphabet ohne Verwechslungszeichen). */
+/** Format: XXXX-XXXX-XXXX (Crockford-ähnliches Alphabet ohne Verwechslungszeichen). */
 const RECOVERY_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 function generateRecoveryCode(): string {
@@ -81,7 +81,7 @@ function hashRecoveryCode(code: string): string {
 
 /**
  * Erzeugt einen frischen Satz Recovery-Codes, ersetzt alle bisherigen
- * und gibt die Klartext-Codes genau einmal zurueck.
+ * und gibt die Klartext-Codes genau einmal zurück.
  */
 export async function regenerateRecoveryCodes(userUuid: string): Promise<string[]> {
   const codes = Array.from({ length: RECOVERY_CODE_COUNT }, () => generateRecoveryCode());
@@ -99,7 +99,7 @@ export async function regenerateRecoveryCodes(userUuid: string): Promise<string[
   return codes;
 }
 
-/** Verbraucht einen Recovery-Code. Gibt true zurueck, wenn er gueltig war. */
+/** Verbraucht einen Recovery-Code. Gibt true zurück, wenn er gültig war. */
 export async function consumeRecoveryCode(userUuid: string, code: string): Promise<boolean> {
   const normalized = normalizeRecoveryCode(code);
   if (normalized.length !== 12) return false;

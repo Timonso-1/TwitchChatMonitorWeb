@@ -8,7 +8,7 @@ import { adminViewerProfiles } from "@/lib/db/schema";
  *
  * Die Daten werden in `admin_viewer_profiles` zwischengespeichert und
  * erst nach Ablauf der Frist erneut geholt. Ohne hinterlegte Zugangsdaten
- * verhaelt sich das Modul still: es liefert einfach keine Bilder.
+ * verhält sich das Modul still: es liefert einfach keine Bilder.
  */
 
 const HELIX_USERS_URL = "https://api.twitch.tv/helix/users";
@@ -32,7 +32,7 @@ interface CachedToken {
   expiresAt: number;
 }
 
-// Token im Prozess halten – es ist rund 60 Tage gueltig.
+// Token im Prozess halten – es ist rund 60 Tage gültig.
 const globalForToken = globalThis as unknown as { __twitchAppToken?: CachedToken };
 
 async function getAppAccessToken(): Promise<string | null> {
@@ -144,7 +144,7 @@ export interface TwitchLookupResult {
 /** Richtung der Umwandlung. */
 export type LookupDirection = "name-to-id" | "id-to-name";
 
-/** Entfernt Twitch-URLs und @-Praefixe, damit nur der Login uebrig bleibt. */
+/** Entfernt Twitch-URLs und @-Präfixe, damit nur der Login übrig bleibt. */
 export function normalizeTwitchLogin(value: string): string {
   return value
     .trim()
@@ -212,8 +212,8 @@ export interface ViewerAvatar {
 /**
  * Liefert Profilbilder aus dem Zwischenspeicher, OHNE auf die Twitch-API zu warten.
  *
- * Fehlende Eintraege werden im Hintergrund nachgeladen und stehen beim
- * naechsten Aufruf bereit. Das ist der entscheidende Unterschied zu
+ * Fehlende Einträge werden im Hintergrund nachgeladen und stehen beim
+ * nächsten Aufruf bereit. Das ist der entscheidende Unterschied zu
  * `getViewerAvatars`: dort wartet der Seitenaufbau auf die API-Antwort,
  * was bei vielen unbekannten Nutzern mehrere Sekunden kosten kann.
  */
@@ -314,8 +314,8 @@ async function refreshProfiles(userIds: string[]): Promise<void> {
 }
 
 /**
- * Liefert Profilbilder und WARTET auf fehlende Eintraege.
- * Nur fuer Einzelabrufe geeignet – bei Listen `getCachedViewerAvatars` nutzen.
+ * Liefert Profilbilder und WARTET auf fehlende Einträge.
+ * Nur für Einzelabrufe geeignet – bei Listen `getCachedViewerAvatars` nutzen.
  */
 export async function getViewerAvatars(userIds: string[]): Promise<Map<string, ViewerAvatar>> {
   const result = new Map<string, ViewerAvatar>();
@@ -423,14 +423,176 @@ export async function getViewerAvatars(userIds: string[]): Promise<Map<string, V
   return result;
 }
 
-/** Bequemer Zugriff fuer eine einzelne ID. */
+/** Bequemer Zugriff für eine einzelne ID. */
 export async function getViewerAvatar(userId: string): Promise<ViewerAvatar | null> {
   const map = await getViewerAvatars([userId]);
   return map.get(userId) ?? null;
 }
 
-/** Entfernt abgelaufene Eintraege – optional per Wartungsaufgabe aufrufbar. */
+/** Entfernt abgelaufene Einträge – optional per Wartungsaufgabe aufrufbar. */
 export async function pruneProfileCache(): Promise<void> {
   const cutoff = new Date(Date.now() - NOT_FOUND_TTL_MS * 2);
   await db.delete(adminViewerProfiles).where(lt(adminViewerProfiles.fetchedAt, cutoff));
+}
+
+// ---------------------------------------------------------------------------
+// Chat-Abzeichen
+// ---------------------------------------------------------------------------
+
+/**
+ * Abzeichenbilder des Chats.
+ *
+ * Twitch liefert die Bild-URLs pro Abzeichen und Version – global und je
+ * Channel. Diese Sätze ändern sich sehr selten, deshalb liegen sie nur im
+ * Prozessspeicher und nicht in der Datenbank. Nach einem Neustart wird beim
+ * ersten Seitenaufruf einmal nachgeladen.
+ */
+
+const HELIX_GLOBAL_BADGES_URL = "https://api.twitch.tv/helix/chat/badges/global";
+const HELIX_CHANNEL_BADGES_URL = "https://api.twitch.tv/helix/chat/badges";
+
+/** Abzeichensätze so lange als aktuell betrachten. */
+const BADGE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** Notbremse: eine langsame Twitch-Antwort darf den Seitenaufbau nicht blockieren. */
+const BADGE_FETCH_TIMEOUT_MS = 4000;
+
+export interface BadgeImage {
+  title: string;
+  url1x: string;
+  url2x: string;
+}
+
+/** Abzeichen-Name → Version → Bild. */
+export type BadgeSet = Map<string, Map<string, BadgeImage>>;
+
+interface HelixBadgeSet {
+  set_id: string;
+  versions?: Array<{
+    id: string;
+    title?: string;
+    image_url_1x?: string;
+    image_url_2x?: string;
+  }>;
+}
+
+interface BadgeCacheEntry {
+  set: BadgeSet;
+  fetchedAt: number;
+}
+
+const globalForBadges = globalThis as unknown as {
+  __twitchBadgeCache?: { global?: BadgeCacheEntry; channels: Map<string, BadgeCacheEntry> };
+};
+
+function badgeCache() {
+  globalForBadges.__twitchBadgeCache ??= { channels: new Map() };
+  return globalForBadges.__twitchBadgeCache;
+}
+
+function isFresh(entry: BadgeCacheEntry): boolean {
+  return Date.now() - entry.fetchedAt < BADGE_CACHE_TTL_MS;
+}
+
+function toBadgeSet(data: HelixBadgeSet[]): BadgeSet {
+  const set: BadgeSet = new Map();
+
+  for (const entry of data) {
+    const versions = new Map<string, BadgeImage>();
+
+    for (const version of entry.versions ?? []) {
+      const url1x = version.image_url_1x;
+      if (!url1x) continue;
+
+      versions.set(version.id, {
+        title: version.title || entry.set_id,
+        url1x,
+        url2x: version.image_url_2x || url1x,
+      });
+    }
+
+    if (versions.size > 0) set.set(entry.set_id.toLowerCase(), versions);
+  }
+
+  return set;
+}
+
+async function fetchBadgeSet(url: string): Promise<BadgeSet | null> {
+  const token = await getAppAccessToken();
+  const clientId = process.env.TWITCH_CLIENT_ID;
+  if (!token || !clientId) return null;
+
+  try {
+    const response = await fetch(url, {
+      headers: { "Client-Id": clientId, Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(BADGE_FETCH_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      console.error("[twitch] Abzeichenabruf fehlgeschlagen:", response.status, await response.text());
+      return null;
+    }
+
+    const data = (await response.json()) as { data?: HelixBadgeSet[] };
+    return toBadgeSet(data.data ?? []);
+  } catch (error) {
+    console.error("[twitch] Abzeichenabruf fehlgeschlagen:", error);
+    return null;
+  }
+}
+
+async function getGlobalBadges(): Promise<BadgeSet> {
+  const cache = badgeCache();
+  const cached = cache.global;
+  if (cached && isFresh(cached)) return cached.set;
+
+  const set = await fetchBadgeSet(HELIX_GLOBAL_BADGES_URL);
+
+  // Auch ein Fehlschlag wird vermerkt, damit nicht jeder Seitenaufruf
+  // erneut in dieselbe Wand läuft.
+  const entry: BadgeCacheEntry = { set: set ?? cached?.set ?? new Map(), fetchedAt: Date.now() };
+  cache.global = entry;
+  return entry.set;
+}
+
+async function getChannelBadges(channelId: string): Promise<BadgeSet> {
+  const cache = badgeCache();
+  const cached = cache.channels.get(channelId);
+  if (cached && isFresh(cached)) return cached.set;
+
+  const set = await fetchBadgeSet(`${HELIX_CHANNEL_BADGES_URL}?broadcaster_id=${encodeURIComponent(channelId)}`);
+
+  const entry: BadgeCacheEntry = { set: set ?? cached?.set ?? new Map(), fetchedAt: Date.now() };
+  cache.channels.set(channelId, entry);
+  return entry.set;
+}
+
+/** Kanaleigene Abzeichen überschreiben die globalen mit gleichem Namen. */
+function mergeBadgeSets(global: BadgeSet, channel: BadgeSet): BadgeSet {
+  const merged: BadgeSet = new Map(global);
+  for (const [name, versions] of channel) merged.set(name, versions);
+  return merged;
+}
+
+/**
+ * Abzeichenbilder für die angegebenen Channels (Broadcaster-IDs).
+ *
+ * Ohne hinterlegte Zugangsdaten kommt eine leere Map zurück – die Anzeige
+ * fällt dann auf beschriftete Abzeichen ohne Bild zurück.
+ */
+export async function getCachedBadgeSets(channelIds: string[]): Promise<Map<string, BadgeSet>> {
+  const result = new Map<string, BadgeSet>();
+  const unique = [...new Set(channelIds.filter(Boolean))];
+  if (unique.length === 0 || !isTwitchApiConfigured()) return result;
+
+  const global = await getGlobalBadges();
+
+  const sets = await Promise.all(unique.map(async (id) => [id, await getChannelBadges(id)] as const));
+
+  for (const [id, channel] of sets) {
+    result.set(id, mergeBadgeSets(global, channel));
+  }
+
+  return result;
 }

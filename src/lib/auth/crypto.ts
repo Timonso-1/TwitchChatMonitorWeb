@@ -18,7 +18,7 @@ function getEncryptionKey(): Buffer {
   const raw = process.env.ENCRYPTION_KEY;
   if (!raw) {
     throw new Error(
-      "ENCRYPTION_KEY fehlt. Erzeuge einen Schluessel mit `npm run genkeys` und trage ihn in die .env ein.",
+      "ENCRYPTION_KEY fehlt. Erzeuge einen Schlüssel mit `npm run genkeys` und trage ihn in die .env ein.",
     );
   }
 
@@ -31,7 +31,7 @@ function getEncryptionKey(): Buffer {
   return key;
 }
 
-/** Verschluesselt einen String. Ausgabeformat: base64url(iv).base64url(tag).base64url(ciphertext) */
+/** Verschlüsselt einen String. Ausgabeformat: base64url(iv).base64url(tag).base64url(ciphertext) */
 export function encrypt(plaintext: string): string {
   const key = getEncryptionKey();
   const iv = randomBytes(IV_LENGTH);
@@ -43,12 +43,12 @@ export function encrypt(plaintext: string): string {
   return [iv.toString("base64url"), tag.toString("base64url"), ciphertext.toString("base64url")].join(".");
 }
 
-/** Entschluesselt einen mit `encrypt` erzeugten String. Wirft bei Manipulation. */
+/** Entschlüsselt einen mit `encrypt` erzeugten String. Wirft bei Manipulation. */
 export function decrypt(payload: string): string {
   const key = getEncryptionKey();
   const parts = payload.split(".");
   if (parts.length !== 3) {
-    throw new Error("Ungueltiges Chiffrat-Format.");
+    throw new Error("Ungültiges Chiffrat-Format.");
   }
 
   const [ivPart, tagPart, dataPart] = parts;
@@ -57,7 +57,7 @@ export function decrypt(payload: string): string {
   const ciphertext = Buffer.from(dataPart, "base64url");
 
   if (iv.length !== IV_LENGTH || tag.length !== TAG_LENGTH) {
-    throw new Error("Ungueltige IV- oder Tag-Laenge.");
+    throw new Error("Ungültige IV- oder Tag-Länge.");
   }
 
   const decipher = createDecipheriv(ALGORITHM, key, iv);
@@ -66,7 +66,7 @@ export function decrypt(payload: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }
 
-/** SHA-256-Hex-Hash. Wird fuer Session-Tokens und Recovery-Codes verwendet. */
+/** SHA-256-Hex-Hash. Wird für Session-Tokens und Recovery-Codes verwendet. */
 export function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }

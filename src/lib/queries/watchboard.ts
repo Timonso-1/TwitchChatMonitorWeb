@@ -1,7 +1,9 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { adminViewerNotes, moderationActions, viewers } from "@/lib/db/schema";
+import { inRange } from "@/lib/queries/range-filter";
+import type { ResolvedRange } from "@/lib/range";
 
 /**
  * Beobachtungsliste: Chatter, die aus mehreren Gründen auffällig sind.
@@ -38,7 +40,7 @@ export interface WatchboardEntry {
 
 export interface WatchboardFilters {
   /** Zeitraum für die Moderationszählung. */
-  days: number;
+  range: ResolvedRange;
   /** Nur Chatter mit mindestens einer kritischen Notiz. */
   onlyCritical?: boolean;
   limit: number;
@@ -58,8 +60,6 @@ const SCORE = {
 } as const;
 
 export async function getWatchboard(filters: WatchboardFilters): Promise<WatchboardEntry[]> {
-  const since = new Date(Date.now() - filters.days * 24 * 60 * 60 * 1000);
-
   // Kandidaten sind alle mit Notizen oder mit Moderationshistorie im Zeitraum.
   const [noteRows, moderationRows] = await Promise.all([
     db
@@ -84,7 +84,7 @@ export async function getWatchboard(filters: WatchboardFilters): Promise<Watchbo
         lastAt: sql<Date | null>`MAX(${moderationActions.occurredAt})`,
       })
       .from(moderationActions)
-      .where(and(isNotNull(moderationActions.targetUserId), gte(moderationActions.occurredAt, since)))
+      .where(and(isNotNull(moderationActions.targetUserId), inRange(moderationActions.occurredAt, filters.range)))
       .groupBy(moderationActions.targetUserId),
   ]);
 

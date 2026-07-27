@@ -1,4 +1,5 @@
 import * as React from "react";
+import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
@@ -43,7 +44,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-9 px-4 text-left align-middle text-xs font-medium text-[var(--color-muted-foreground)]",
+        "h-10 px-4 text-left align-middle text-xs font-medium text-[var(--color-muted-foreground)]",
         className,
       )}
       {...props}
@@ -54,16 +55,30 @@ TableHead.displayName = "TableHead";
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(
   ({ className, ...props }, ref) => (
-    <td ref={ref} className={cn("px-4 py-2.5 align-middle", className)} {...props} />
+    <td ref={ref} className={cn("px-4 py-3.5 align-middle", className)} {...props} />
   ),
 );
 TableCell.displayName = "TableCell";
 
-function TableEmpty({ colSpan, children }: { colSpan: number; children?: React.ReactNode }) {
+function TableEmpty({
+  colSpan,
+  children,
+  title,
+  description,
+}: {
+  colSpan: number;
+  children?: React.ReactNode;
+  title?: string;
+  description?: string;
+}) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-12 text-center text-sm text-[var(--color-muted-foreground)]">
-        {children ?? "Keine Einträge gefunden."}
+      <td colSpan={colSpan} className="p-0">
+        {children ? (
+          <div className="px-4 py-12 text-center text-sm text-[var(--color-muted-foreground)]">{children}</div>
+        ) : (
+          <EmptyState compact title={title ?? "Keine Einträge gefunden."} description={description} />
+        )}
       </td>
     </tr>
   );

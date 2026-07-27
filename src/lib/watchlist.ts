@@ -1,6 +1,6 @@
 /**
  * Wortfilter: Erkennung beobachteter Begriffe in Chatnachrichten.
- * Bewusst frei von Server-Abhaengigkeiten, damit die Hervorhebung
+ * Bewusst frei von Server-Abhängigkeiten, damit die Hervorhebung
  * auch in Client-Komponenten funktioniert.
  */
 

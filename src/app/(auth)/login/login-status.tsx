@@ -18,9 +18,7 @@ const REFRESH_MS = 20_000;
 
 /**
  * Erfassungsstand auf der Anmeldeseite, aktualisiert sich selbst.
- *
- * Bewusst leicht gehalten: die Karte soll das Anmeldeformular ergänzen,
- * nicht mit ihm um Aufmerksamkeit konkurrieren.
+ * Rechte Split-Fläche: Live-Signal, Activity und Kennzahlen als visuelle Anker.
  */
 export function LoginStatus({ initial }: { initial: StatusData | null }) {
   const [data, setData] = React.useState<StatusData | null>(initial);
@@ -54,70 +52,75 @@ export function LoginStatus({ initial }: { initial: StatusData | null }) {
   const peak = Math.max(...data.activity.map((point) => point.messages), 1);
 
   return (
-    <div className="mt-5 space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-10">
       {/* Betriebszustand */}
-      <div className="flex items-center justify-center gap-2 text-xs">
-        <span className="relative flex size-1.5">
-          {data.live && (
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[var(--color-success)] opacity-75" />
-          )}
-          <span
-            className={cn(
-              "relative inline-flex size-1.5 rounded-full",
-              data.live ? "bg-[var(--color-success)]" : "bg-[var(--color-subtle)]",
+      <div className="space-y-2">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex size-2.5">
+            {data.live && (
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-[var(--color-success)] opacity-60 motion-reduce:animate-none" />
             )}
-          />
-        </span>
+            <span
+              className={cn(
+                "relative inline-flex size-2.5 rounded-full",
+                data.live ? "bg-[var(--color-success)]" : "bg-[var(--color-subtle)]",
+              )}
+            />
+          </span>
 
-        <span className="text-[var(--color-muted-foreground)]">
-          {data.live ? "Erfassung aktiv" : "Keine aktuelle Aktivität"}
-        </span>
+          <p className="text-sm font-medium tracking-tight text-[var(--color-foreground)]">
+            {data.live ? "Erfassung aktiv" : "Keine aktuelle Aktivität"}
+          </p>
+        </div>
 
         {data.lastMessageAt && (
-          <>
-            <span className="text-[var(--color-border-strong)]">·</span>
-            <span className="text-[var(--color-subtle)]">{formatRelative(data.lastMessageAt)}</span>
-          </>
+          <p className="pl-5 text-xs text-[var(--color-subtle)]">
+            Letzte Nachricht {formatRelative(data.lastMessageAt)}
+          </p>
         )}
       </div>
 
       {/* Nachrichtenaufkommen der letzten 24 Stunden */}
       {data.activity.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex h-10 items-end gap-[3px]" aria-hidden>
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-xs font-medium text-[var(--color-muted-foreground)]">Aktivität · 24 Stunden</p>
+            <p className="text-xs tabular-nums text-[var(--color-subtle)]">
+              <span className="font-medium text-[var(--color-foreground)]">
+                {formatNumber(data.messages24h)}
+              </span>{" "}
+              Nachrichten
+            </p>
+          </div>
+
+          <div className="flex h-40 items-end gap-[3px]" aria-hidden>
             {data.activity.map((point, index) => {
-              const height = point.messages === 0 ? 3 : Math.max(12, (point.messages / peak) * 100);
+              const height = point.messages === 0 ? 4 : Math.max(10, (point.messages / peak) * 100);
               // Jüngere Stunden kräftiger – der Blick wandert nach rechts.
-              const strength = 0.35 + (index / Math.max(1, data.activity.length - 1)) * 0.65;
+              const strength = 0.3 + (index / Math.max(1, data.activity.length - 1)) * 0.7;
+              const brandMix = Math.round(18 + strength * 42);
 
               return (
                 <span
                   key={point.hour}
                   title={`${new Date(point.hour).toLocaleTimeString("de-DE", { hour: "2-digit" })} Uhr · ${formatNumber(point.messages)}`}
-                  className="flex-1 rounded-sm transition-[height] duration-700 ease-out"
+                  className="flex-1 rounded-sm transition-[height] duration-700 ease-out motion-reduce:transition-none"
                   style={{
                     height: `${height}%`,
                     backgroundColor:
                       point.messages === 0
                         ? "var(--color-border)"
-                        : `color-mix(in srgb, var(--color-foreground) ${Math.round(strength * 55)}%, transparent)`,
+                        : `color-mix(in srgb, var(--color-brand) ${brandMix}%, var(--color-foreground))`,
                   }}
                 />
               );
             })}
           </div>
-
-          <p className="text-center text-[0.7rem] text-[var(--color-subtle)]">
-            <span className="tabular-nums text-[var(--color-muted-foreground)]">
-              {formatNumber(data.messages24h)}
-            </span>{" "}
-            Nachrichten in 24 Stunden
-          </p>
         </div>
       )}
 
       {/* Kennzahlen */}
-      <dl className="grid grid-cols-3 gap-2">
+      <dl className="grid grid-cols-3 gap-6 border-t border-[var(--color-border)] pt-8">
         <Metric icon={Radio} label="Channels" value={formatNumber(data.channelsActive)} />
         <Metric
           icon={MessageSquare}
@@ -148,13 +151,12 @@ function Metric({
   title?: string;
 }) {
   return (
-    <div
-      title={title}
-      className="flex flex-col items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)]/60 px-2 py-2.5 backdrop-blur-sm transition-colors hover:border-[var(--color-border-strong)]"
-    >
-      <Icon className="size-3.5 text-[var(--color-subtle)]" />
-      <dd className="text-sm font-semibold tabular-nums leading-none">{value}</dd>
-      <dt className="text-[0.65rem] text-[var(--color-subtle)]">{label}</dt>
+    <div title={title} className="min-w-0 space-y-2">
+      <dt className="flex items-center gap-1.5 text-[0.7rem] text-[var(--color-subtle)]">
+        <Icon className="size-3.5 shrink-0" />
+        {label}
+      </dt>
+      <dd className="truncate text-2xl font-semibold tracking-tight tabular-nums leading-none">{value}</dd>
     </div>
   );
 }

@@ -1,8 +1,8 @@
-/** Einheitliches Rueckgabeformat aller Server Actions, die mit `useActionState` verwendet werden. */
+/** Einheitliches Rückgabeformat aller Server Actions, die mit `useActionState` verwendet werden. */
 export interface ActionState {
   status: "idle" | "success" | "error";
   message?: string;
-  /** Feldbezogene Fehlermeldungen, Schluessel = Feldname. */
+  /** Feldbezogene Fehlermeldungen, Schlüssel = Feldname. */
   fieldErrors?: Record<string, string[]>;
   /** Optionale Nutzdaten (z. B. neu erzeugte Recovery-Codes). */
   data?: Record<string, unknown>;
@@ -29,7 +29,7 @@ export function fromZodError(error: { flatten: () => { fieldErrors: Record<strin
 
   return {
     status: "error",
-    message: "Bitte pruefe deine Eingaben.",
+    message: "Bitte prüfe deine Eingaben.",
     fieldErrors,
   };
 }

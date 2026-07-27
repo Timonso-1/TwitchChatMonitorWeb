@@ -11,7 +11,7 @@ import {
 import { db } from "@/lib/db";
 import { adminUsers } from "@/lib/db/schema";
 
-/** Nimmt die Antwort von Twitch entgegen und speichert die Verknuepfung. */
+/** Nimmt die Antwort von Twitch entgegen und speichert die Verknüpfung. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const cookieStore = await cookies();
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Twitch meldet Abbruch oder Ablehnung ueber den error-Parameter.
+  // Twitch meldet Abbruch oder Ablehnung über den error-Parameter.
   if (url.searchParams.get("error")) {
     return fail(url.searchParams.get("error") === "access_denied" ? "denied" : "twitch_error");
   }
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   const identity = await exchangeCodeForIdentity(code);
   if (!identity) return fail("exchange");
 
-  // Ein Twitch-Account darf nur zu einem Panel-Account gehoeren.
+  // Ein Twitch-Account darf nur zu einem Panel-Account gehören.
   const [conflict] = await db
     .select({ uuid: adminUsers.uuid, username: adminUsers.username })
     .from(adminUsers)

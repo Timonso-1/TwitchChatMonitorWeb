@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, Filter, ListFilter, Radar } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { RangeSelector } from "@/components/range-selector";
 import { StatCard } from "@/components/stat-card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
+import { SectionHeader } from "@/components/section-header";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { WatchTermDialog } from "./watch-term-dialog";
 import { WatchTermActions } from "./watch-term-actions";
@@ -14,15 +16,22 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { getActiveWatchTerms, getTermStats, listWatchTerms } from "@/lib/queries/watchlist";
+import { HITS_PRESETS, resolveRange } from "@/lib/range";
 import { MATCH_TYPES, severityStyle } from "@/lib/watchlist";
 import { formatNumber, formatRelative } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Wortfilter" };
 export const dynamic = "force-dynamic";
 
-export default async function WatchlistPage() {
+export default async function WatchlistPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await requirePermission(PERMISSIONS.WATCHLIST_VIEW);
   const canManage = hasPermission(session.user.permissions, PERMISSIONS.WATCHLIST_MANAGE);
+  const params = await searchParams;
+  const range = resolveRange(params, { presets: HITS_PRESETS, fallbackDays: 30 });
 
   const [terms, channels, activeTerms] = await Promise.all([
     listWatchTerms(),
@@ -30,7 +39,7 @@ export default async function WatchlistPage() {
     getActiveWatchTerms(),
   ]);
 
-  const stats = await getTermStats(activeTerms, 30);
+  const stats = await getTermStats(activeTerms, range);
   const statsById = new Map(stats.map((entry) => [entry.termId, entry]));
 
   const activeCount = terms.filter((term) => term.active).length;
@@ -44,14 +53,19 @@ export default async function WatchlistPage() {
       <PageHeader
         title="Wortfilter"
         description="Begriffe, die im Chat beobachtet werden. Treffer werden überall im Panel hervorgehoben."
-        actions={canManage ? <WatchTermDialog mode="create" channels={channels} /> : undefined}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <RangeSelector basePath="/watchlist" presets={HITS_PRESETS} range={range} />
+            {canManage && <WatchTermDialog mode="create" channels={channels} />}
+          </div>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard label="Aktive Begriffe" value={activeCount} hint={`${terms.length} insgesamt`} icon={Radar} accent="brand" />
         <StatCard label="Davon kritisch" value={criticalCount} icon={AlertTriangle} accent="destructive" />
         <StatCard
-          label="Treffer (30 Tage)"
+          label={`Treffer (${range.label})`}
           value={hitsTotal}
           hint="Grobe Vorauswahl, ohne Wortgrenzen"
           icon={Filter}
@@ -70,16 +84,12 @@ export default async function WatchlistPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Beobachtete Begriffe</CardTitle>
-          <CardDescription>
-            Trefferzahlen beziehen sich auf die letzten 30 Tage und sind eine Obergrenze — die genaue Prüfung mit
-            Wortgrenzen findet erst in der Trefferliste statt.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="px-0 pb-0">
+      <section className="space-y-4">
+        <SectionHeader
+          title="Beobachtete Begriffe"
+          description="Trefferzahlen beziehen sich auf die letzten 30 Tage und sind eine Obergrenze — die genaue Prüfung mit Wortgrenzen findet erst in der Trefferliste statt."
+        />
+        <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -95,9 +105,11 @@ export default async function WatchlistPage() {
 
             <TableBody>
               {terms.length === 0 ? (
-                <TableEmpty colSpan={7}>
-                  Noch keine Begriffe hinterlegt. Lege einen an, um auffällige Nachrichten automatisch hervorzuheben.
-                </TableEmpty>
+                <TableEmpty
+                  colSpan={7}
+                  title="Noch keine Begriffe hinterlegt"
+                  description="Lege einen an, um auffällige Nachrichten automatisch hervorzuheben."
+                />
               ) : (
                 terms.map((term) => {
                   const stat = statsById.get(term.id);
@@ -156,8 +168,8 @@ export default async function WatchlistPage() {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </PanelSurface>
+      </section>
 
       <Alert variant="info" title="Hinweis zur Genauigkeit">
         Die Vorauswahl in der Datenbank arbeitet mit einfacher Textsuche. Ob ein Treffer wirklich zählt — etwa bei

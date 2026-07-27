@@ -1,15 +1,16 @@
 import "server-only";
-import { and, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messages } from "@/lib/db/schema";
+import type { ResolvedRange } from "@/lib/range";
 import { parseEmotes } from "@/lib/twitch-tags";
 
 /**
  * Emote-Auswertung aus dem `emotes`-Tag der Chatnachrichten.
  *
- * Achtung Performance: Der Tag laesst sich nicht sinnvoll indizieren, die
- * Auswertung passiert deshalb in JavaScript ueber eine begrenzte Stichprobe.
- * Alle Rueckgaben nennen daher, wie viele Nachrichten tatsaechlich betrachtet
+ * Achtung Performance: Der Tag lässt sich nicht sinnvoll indizieren, die
+ * Auswertung passiert deshalb in JavaScript über eine begrenzte Stichprobe.
+ * Alle Rückgaben nennen daher, wie viele Nachrichten tatsächlich betrachtet
  * wurden – die Zahlen sind Hochrechnungen, keine exakten Gesamtwerte.
  */
 
@@ -32,7 +33,7 @@ export interface EmoteScanResult {
   emotes: EmoteStat[];
   /** Wie viele Nachrichten mit Emotes betrachtet wurden. */
   scanned: number;
-  /** true, wenn die Obergrenze erreicht wurde und aeltere Daten fehlen. */
+  /** true, wenn die Obergrenze erreicht wurde und ältere Daten fehlen. */
   truncated: boolean;
   totalUses: number;
 }
@@ -40,19 +41,20 @@ export interface EmoteScanResult {
 interface EmoteScanFilters {
   channelUuid?: string;
   userId?: string;
-  days?: number;
+  /** Ohne Zeitraum wird der gesamte Bestand betrachtet. */
+  range?: ResolvedRange;
   limit?: number;
 }
 
-/** Laedt die Rohdaten für alle folgenden Auswertungen. */
+/** Lädt die Rohdaten für alle folgenden Auswertungen. */
 async function scanEmoteMessages(filters: EmoteScanFilters) {
   const conditions = [isNotNull(messages.emotes), ne(messages.emotes, "")];
 
   if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
   if (filters.userId) conditions.push(eq(messages.userId, filters.userId));
 
-  if (filters.days) {
-    conditions.push(gte(messages.receivedAt, new Date(Date.now() - filters.days * 24 * 60 * 60 * 1000)));
+  if (filters.range) {
+    conditions.push(gte(messages.receivedAt, filters.range.start), lte(messages.receivedAt, filters.range.end));
   }
 
   return db
@@ -132,7 +134,7 @@ export interface EmoteUser {
   uses: number;
 }
 
-/** Wer benutzt ein bestimmtes Emote am haeufigsten? */
+/** Wer benutzt ein bestimmtes Emote am häufigsten? */
 export async function getEmoteTopUsers(
   emoteId: string,
   filters: EmoteScanFilters,
@@ -167,13 +169,18 @@ export interface EmoteTimelinePoint {
   uses: number;
 }
 
-/** Taeglicher Verlauf der Emote-Nutzung. */
+/** Verlauf der Emote-Nutzung – stundenweise bei kurzen, sonst tageweise. */
 export async function getEmoteTimeline(
   filters: EmoteScanFilters & { emoteId?: string },
-  days = 30,
+  range: ResolvedRange,
 ): Promise<EmoteTimelinePoint[]> {
-  const rows = await scanEmoteMessages({ ...filters, days });
+  const rows = await scanEmoteMessages({ ...filters, range });
   const buckets = new Map<string, number>();
+
+  const keyOf = (date: Date) => {
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return range.hourly ? `${day} ${String(date.getHours()).padStart(2, "0")}` : day;
+  };
 
   for (const row of rows) {
     const parsed = parseEmotes(row.emotes, row.content);
@@ -183,19 +190,19 @@ export async function getEmoteTimeline(
 
     if (uses === 0) continue;
 
-    const date = row.receivedAt;
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const key = keyOf(row.receivedAt);
     buckets.set(key, (buckets.get(key) ?? 0) + uses);
   }
 
   const points: EmoteTimelinePoint[] = [];
-  const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  start.setHours(0, 0, 0, 0);
+  const step = range.hourly ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
-  for (let time = start.getTime(); time <= Date.now(); time += 24 * 60 * 60 * 1000) {
+  const start = new Date(range.start);
+  if (range.hourly) start.setMinutes(0, 0, 0);
+
+  for (let time = start.getTime(); time <= range.end.getTime(); time += step) {
     const date = new Date(time);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    points.push({ bucket: date.toISOString(), uses: buckets.get(key) ?? 0 });
+    points.push({ bucket: date.toISOString(), uses: buckets.get(keyOf(date)) ?? 0 });
   }
 
   return points;
@@ -208,7 +215,7 @@ export interface ViewerEmoteSummary {
   scanned: number;
 }
 
-/** Emote-Nutzung eines einzelnen Chatters – fuer das Profil. */
+/** Emote-Nutzung eines einzelnen Chatters – für das Profil. */
 export async function getViewerEmoteSummary(userId: string, limit = 8): Promise<ViewerEmoteSummary> {
   const result = await getEmoteStats({ userId, limit });
 
@@ -220,16 +227,16 @@ export async function getViewerEmoteSummary(userId: string, limit = 8): Promise<
 }
 
 /**
- * Gesamtzahl der Nachrichten im Bezugsrahmen – noetig, um den Anteil
- * der Nachrichten mit Emotes einordnen zu koennen.
+ * Gesamtzahl der Nachrichten im Bezugsrahmen – nötig, um den Anteil
+ * der Nachrichten mit Emotes einordnen zu können.
  */
 export async function countMessagesForScope(filters: EmoteScanFilters): Promise<number> {
   const conditions = [];
 
   if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
   if (filters.userId) conditions.push(eq(messages.userId, filters.userId));
-  if (filters.days) {
-    conditions.push(gte(messages.receivedAt, new Date(Date.now() - filters.days * 24 * 60 * 60 * 1000)));
+  if (filters.range) {
+    conditions.push(gte(messages.receivedAt, filters.range.start), lte(messages.receivedAt, filters.range.end));
   }
 
   const [row] = await db

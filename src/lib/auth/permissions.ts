@@ -55,7 +55,7 @@ export interface PermissionGroup {
     value: Permission;
     label: string;
     description: string;
-    /** Rechte, die implizit mitbenoetigt werden. */
+    /** Rechte, die implizit mitbenötigt werden. */
     requires?: Permission[];
   }>;
 }
@@ -76,24 +76,24 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     key: "channels",
     label: "Channels",
-    description: "Verwaltung der ueberwachten Twitch-Channels",
+    description: "Verwaltung der überwachten Twitch-Channels",
     permissions: [
       { value: PERMISSIONS.CHANNELS_VIEW, label: "Channels ansehen", description: "Liste und Details der Channels" },
       {
         value: PERMISSIONS.CHANNELS_CREATE,
         label: "Channel anlegen",
-        description: "Neuen Channel hinzufuegen",
+        description: "Neuen Channel hinzufügen",
         requires: [PERMISSIONS.CHANNELS_VIEW],
       },
       {
         value: PERMISSIONS.CHANNELS_UPDATE,
         label: "Channel bearbeiten",
-        description: "Name, Broadcaster-ID und Status aendern",
+        description: "Name, Broadcaster-ID und Status ändern",
         requires: [PERMISSIONS.CHANNELS_VIEW],
       },
       {
         value: PERMISSIONS.CHANNELS_DELETE,
-        label: "Channel loeschen",
+        label: "Channel löschen",
         description: "Channel dauerhaft entfernen",
         requires: [PERMISSIONS.CHANNELS_VIEW],
       },
@@ -127,7 +127,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       {
         value: PERMISSIONS.MODERATION_VIEW,
         label: "Moderationslog ansehen",
-        description: "Banns, Timeouts und geloeschte Nachrichten",
+        description: "Banns, Timeouts und gelöschte Nachrichten",
       },
       {
         value: PERMISSIONS.MODERATION_EXPORT,
@@ -185,7 +185,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     key: "accounts",
     label: "Accountverwaltung",
-    description: "Panel-Accounts und deren Zugaenge",
+    description: "Panel-Accounts und deren Zugänge",
     permissions: [
       { value: PERMISSIONS.ACCOUNTS_VIEW, label: "Accounts ansehen", description: "Liste aller Panel-Accounts" },
       {
@@ -202,13 +202,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       },
       {
         value: PERMISSIONS.ACCOUNTS_DELETE,
-        label: "Account loeschen",
+        label: "Account löschen",
         description: "Panel-Account dauerhaft entfernen",
         requires: [PERMISSIONS.ACCOUNTS_VIEW],
       },
       {
         value: PERMISSIONS.ACCOUNTS_RESET_2FA,
-        label: "2FA zuruecksetzen",
+        label: "2FA zurücksetzen",
         description: "Zwei-Faktor-Authentifizierung eines Accounts entfernen",
         requires: [PERMISSIONS.ACCOUNTS_VIEW],
       },
@@ -229,7 +229,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       {
         value: PERMISSIONS.ROLES_MANAGE,
         label: "Rollen verwalten",
-        description: "Rollen anlegen, bearbeiten und loeschen",
+        description: "Rollen anlegen, bearbeiten und löschen",
         requires: [PERMISSIONS.ROLES_VIEW],
       },
     ],
@@ -264,7 +264,7 @@ export function permissionLabel(permission: string): string {
 }
 
 /**
- * Erweitert eine Rechteauswahl um alle implizit benoetigten Rechte.
+ * Erweitert eine Rechteauswahl um alle implizit benötigten Rechte.
  * Beispiel: "channels.create" zieht "channels.view" nach sich.
  */
 export function expandRequiredPermissions(permissions: string[]): Permission[] {
@@ -284,13 +284,13 @@ export function expandRequiredPermissions(permissions: string[]): Permission[] {
   return [...result] as Permission[];
 }
 
-/** Prueft, ob eine Rechte-Menge ein bestimmtes Recht abdeckt. */
+/** Prüft, ob eine Rechte-Menge ein bestimmtes Recht abdeckt. */
 export function hasPermission(granted: ReadonlySet<string> | readonly string[], required: Permission): boolean {
   const set = granted instanceof Set ? granted : new Set(granted);
   return set.has(WILDCARD_PERMISSION) || set.has(required);
 }
 
-/** Prueft, ob mindestens eines der geforderten Rechte vorhanden ist. */
+/** Prüft, ob mindestens eines der geforderten Rechte vorhanden ist. */
 export function hasAnyPermission(
   granted: ReadonlySet<string> | readonly string[],
   required: readonly Permission[],
@@ -313,7 +313,7 @@ export const DEFAULT_ROLES: Array<{
   {
     key: "superadmin",
     name: "Superadmin",
-    description: "Uneingeschraenkter Zugriff auf saemtliche Funktionen",
+    description: "Uneingeschränkter Zugriff auf sämtliche Funktionen",
     priority: 100,
     color: "#ef4444",
     isSystem: true,

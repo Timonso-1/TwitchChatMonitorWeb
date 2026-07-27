@@ -1,6 +1,13 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
 const nextConfig: NextConfig = {
+  // Verhindert, dass Next.js die Workspace-Root über dem Projekt wählt
+  // (z. B. wegen einer package-lock.json im Benutzerverzeichnis).
+  outputFileTracingRoot: projectRoot,
   reactStrictMode: true,
   serverExternalPackages: ["@node-rs/argon2", "mysql2"],
   poweredByHeader: false,

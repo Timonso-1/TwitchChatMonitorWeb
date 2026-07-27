@@ -3,7 +3,6 @@
 import { useActionState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,88 +25,80 @@ export function SetupTwoFactorForm({ secret, secretToken, qrCode, accountLabel }
 
   if (state.status === "success" && recoveryCodes) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-[var(--color-success)]" />
-            Zwei-Faktor ist aktiv
-          </CardTitle>
-          <CardDescription>
-            Speichere diese Recovery-Codes an einem sicheren Ort. Jeder Code funktioniert genau einmal und sie werden
-            dir nie wieder angezeigt.
-          </CardDescription>
-        </CardHeader>
+      <div className="space-y-5">
+        <div className="flex items-start gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--color-success)_30%,transparent)] bg-[color-mix(in_srgb,var(--color-success)_8%,transparent)] px-3 py-2.5">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--color-success)]" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Zwei-Faktor ist aktiv</p>
+            <p className="text-xs text-[var(--color-muted-foreground)]">
+              Speichere diese Recovery-Codes. Jeder Code funktioniert genau einmal und wird dir nie wieder angezeigt.
+            </p>
+          </div>
+        </div>
 
-        <CardContent className="space-y-4">
-          <RecoveryCodeList codes={recoveryCodes} />
-          <a
-            href="/dashboard"
-            className="flex h-9 w-full items-center justify-center rounded-md bg-[var(--color-primary)] text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90"
-          >
-            Codes gesichert – weiter zum Panel
-          </a>
-        </CardContent>
-      </Card>
+        <RecoveryCodeList codes={recoveryCodes} />
+
+        <a
+          href="/dashboard"
+          className="flex h-9 w-full items-center justify-center rounded-md bg-[var(--color-primary)] text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90"
+        >
+          Codes gesichert – weiter zum Panel
+        </a>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Zwei-Faktor-Authentifizierung einrichten</CardTitle>
-        <CardDescription>
-          Scanne den QR-Code mit einer Authenticator-App (z. B. Aegis, 1Password, Google Authenticator) und bestätige
-          mit dem angezeigten Code.
-        </CardDescription>
-      </CardHeader>
+    <div className="space-y-5">
+      {state.status === "error" && state.message && (
+        <Alert variant="destructive" role="alert">
+          {state.message}
+        </Alert>
+      )}
 
-      <CardContent className="space-y-5">
-        {state.status === "error" && state.message && <Alert variant="destructive">{state.message}</Alert>}
+      <div className="flex justify-center rounded-lg border border-[var(--color-border)] bg-white p-4">
+        {/* Data-URL aus dem Server – bewusst ein natives img statt next/image. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={qrCode} alt="QR-Code für die Authenticator-App" width={200} height={200} />
+      </div>
 
-        <div className="flex justify-center rounded-lg border border-[var(--color-border)] bg-white p-4">
-          {/* Data-URL aus dem Server – bewusst ein natives img statt next/image. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrCode} alt="QR-Code für die Authenticator-App" width={200} height={200} />
+      <div className="space-y-1.5">
+        <Label>Manuelle Eingabe</Label>
+        <div className="flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] px-3 py-2 font-mono text-xs">
+            {secret}
+          </code>
+          <CopyButton value={secret} />
         </div>
+        <p className="text-xs text-[var(--color-subtle)]">Konto: {accountLabel}</p>
+      </div>
+
+      <form action={formAction} className="space-y-5">
+        <input type="hidden" name="secretToken" value={secretToken} />
 
         <div className="space-y-1.5">
-          <Label>Manuelle Eingabe</Label>
-          <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-muted)] px-3 py-2 font-mono text-xs">
-              {secret}
-            </code>
-            <CopyButton value={secret} />
-          </div>
-          <p className="text-xs text-[var(--color-muted-foreground)]">Konto: {accountLabel}</p>
+          <Label htmlFor="code">Code aus der App</Label>
+          <Input
+            id="code"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            maxLength={6}
+            required
+            className="text-center font-mono text-lg tracking-[0.5em]"
+          />
+          {state.fieldErrors?.code?.map((error) => (
+            <p key={error} className="text-xs text-[var(--color-destructive)]">
+              {error}
+            </p>
+          ))}
         </div>
 
-        <form action={formAction} className="space-y-4">
-          <input type="hidden" name="secretToken" value={secretToken} />
-
-          <div className="space-y-1.5">
-            <Label htmlFor="code">Code aus der App</Label>
-            <Input
-              id="code"
-              name="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="123456"
-              maxLength={6}
-              required
-              className="text-center font-mono text-lg tracking-[0.5em]"
-            />
-            {state.fieldErrors?.code?.map((error) => (
-              <p key={error} className="text-xs text-[var(--color-destructive)]">
-                {error}
-              </p>
-            ))}
-          </div>
-
-          <SubmitButton className="w-full" pendingLabel="Aktivieren…">
-            Aktivieren
-          </SubmitButton>
-        </form>
-      </CardContent>
-    </Card>
+        <SubmitButton className="w-full" pendingLabel="Aktivieren…">
+          Aktivieren
+        </SubmitButton>
+      </form>
+    </div>
   );
 }

@@ -6,11 +6,10 @@ import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ChatName } from "@/components/chat-name";
 import { ListTrendHeader } from "@/components/list-trend-header";
 import { MessageContent } from "@/components/message-content";
-import { ChatRoleBadges } from "@/components/twitch-badges";
+import { ChatBadges } from "@/components/chat-badges";
 import { ViewerAvatar } from "@/components/viewer-avatar";
-import { Badge } from "@/components/ui/badge";
+import { PanelSurface } from "@/components/panel-surface";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -19,22 +18,16 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { getMessageContext, listMessages } from "@/lib/queries/twitch";
-import { TREND_RANGES, getMessageTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
-import { getCachedViewerAvatars } from "@/lib/twitch-api";
-import { buildQueryString, formatDateTime, formatNumber, parsePositiveInt, parseSearchParam } from "@/lib/utils";
+import { getMessageTrend } from "@/lib/queries/trends";
+import { TREND_PRESETS, rangeParams, resolveRange } from "@/lib/range";
+import { MESSAGE_ROLE_GROUPS, normalizeRoleFilter } from "@/lib/twitch-tags";
+import { getCachedBadgeSets, getCachedViewerAvatars } from "@/lib/twitch-api";
+import { buildQueryString, formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Nachrichten" };
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
-const ROLES = [
-  { value: "all", label: "Alle" },
-  { value: "mod", label: "Moderatoren" },
-  { value: "subscriber", label: "Subscriber" },
-  { value: "vip", label: "VIPs" },
-  { value: "broadcaster", label: "Broadcaster" },
-  { value: "first", label: "Erste Nachricht" },
-] as const;
 
 export default async function MessagesPage({
   searchParams,
@@ -47,34 +40,38 @@ export default async function MessagesPage({
   const channelUuid = parseSearchParam(params.channel);
   const user = parseSearchParam(params.user);
   const content = parseSearchParam(params.content);
-  const from = parseSearchParam(params.from);
-  const to = parseSearchParam(params.to);
-  const roleParam = parseSearchParam(params.role);
-  const role = (ROLES.find((entry) => entry.value === roleParam)?.value ?? "all") as
-    | "all"
-    | "mod"
-    | "subscriber"
-    | "vip"
-    | "broadcaster"
-    | "first";
+  const role = normalizeRoleFilter(params.role);
   const page = parsePositiveInt(params.page, 1);
-  const range = normalizeTrendRange(params.range);
-  const label = rangeLabel(range);
+  const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
   const [channels, { items, total }, trend] = await Promise.all([
     listChannelOptions(),
-    listMessages({ channelUuid, user, content, role, from, to, page, pageSize: PAGE_SIZE }),
+    listMessages({
+      channelUuid,
+      user,
+      content,
+      role,
+      from: range.fromDate,
+      to: range.toDate,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
     getMessageTrend(range),
   ]);
 
-  const [avatars, context] = await Promise.all([
+  const [avatars, context, badgeSets] = await Promise.all([
     getCachedViewerAvatars(items.map((message) => message.userId)),
     getMessageContext(items),
+    getCachedBadgeSets(items.map((message) => message.channelId)),
   ]);
 
-  const activeFilters = { channel: channelUuid, user, content, role: role === "all" ? undefined : role, from, to };
+  const label = range.label;
+  const activeFilters = { channel: channelUuid, user, content, role: role === "all" ? undefined : role };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
   const canExport = hasPermission(session.user.permissions, PERMISSIONS.MESSAGES_EXPORT);
+
+  /** Zeitraum + Filter, wie sie Links und Formulare weitertragen müssen. */
+  const linkParams = { ...activeFilters, ...rangeParams(range) };
 
   return (
     <>
@@ -84,7 +81,10 @@ export default async function MessagesPage({
         actions={
           canExport ? (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/messages/export${buildQueryString(activeFilters)}`} prefetch={false}>
+              <Link
+                href={`/messages/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
+                prefetch={false}
+              >
                 <Download />
                 CSV-Export
               </Link>
@@ -96,9 +96,8 @@ export default async function MessagesPage({
       <ListTrendHeader
         basePath="/messages"
         params={activeFilters}
-        rangeOptions={TREND_RANGES}
+        presets={TREND_PRESETS}
         range={range}
-        rangeLabel={label}
         title="Nachrichtenaufkommen"
         description="Aufgezeichnete Chatnachrichten pro Tag"
         points={trend.points}
@@ -134,30 +133,28 @@ export default async function MessagesPage({
           <Input name="content" defaultValue={content ?? ""} placeholder="Textsuche" />
         </FilterField>
 
-        <FilterField label="Rolle" className="w-full space-y-1.5 sm:w-44">
+        <FilterField label="Rolle / Abzeichen" className="w-full space-y-1.5 sm:w-48">
           <Select name="role" defaultValue={role}>
-            {ROLES.map((entry) => (
-              <option key={entry.value} value={entry.value}>
-                {entry.label}
-              </option>
+            <option value="all">Alle</option>
+            {MESSAGE_ROLE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </Select>
         </FilterField>
 
-        <FilterField label="Von" className="w-full space-y-1.5 sm:w-40">
-          <Input type="date" name="from" defaultValue={from ?? ""} />
-        </FilterField>
-
-        <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
-          <Input type="date" name="to" defaultValue={to ?? ""} />
-        </FilterField>
-
-        {/* Zeitraum des Diagramms beim Filtern beibehalten */}
-        <input type="hidden" name="range" value={range} />
+        {/* Der Zeitraum steuert Diagramm und Tabelle – er muss das Filtern überleben. */}
+        {Object.entries(rangeParams(range)).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
       </FilterBar>
 
-      <Card>
-        <CardContent className="p-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -169,7 +166,7 @@ export default async function MessagesPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={4}>Keine Nachrichten gefunden.</TableEmpty>
+                <TableEmpty colSpan={4} title="Keine Nachrichten gefunden" />
               ) : (
                 items.map((message) => (
                   <TableRow key={message.id}>
@@ -189,17 +186,20 @@ export default async function MessagesPage({
                         />
 
                         <div className="flex min-w-0 flex-wrap items-center gap-1">
-                          <Link href={`/viewers/${message.userId}`} className="max-w-28 truncate hover:underline">
-                            <ChatName color={message.color} className="font-medium">
-                              {message.displayName ?? message.userName}
-                            </ChatName>
-                          </Link>
-                          <ChatRoleBadges
+                          <ChatBadges
+                            badges={message.badges}
+                            badgeInfo={message.badgeInfo}
+                            set={badgeSets.get(message.channelId)}
                             isBroadcaster={message.isBroadcaster}
                             isMod={message.isMod}
                             isVip={message.isVip}
                             isSubscriber={message.isSubscriber}
                           />
+                          <Link href={`/viewers/${message.userId}`} className="max-w-28 truncate hover:underline">
+                            <ChatName color={message.color} className="font-medium">
+                              {message.displayName ?? message.userName}
+                            </ChatName>
+                          </Link>
                         </div>
                       </div>
                     </TableCell>
@@ -227,13 +227,12 @@ export default async function MessagesPage({
 
           <Pagination
             basePath="/messages"
-            params={{ ...activeFilters, range }}
+            params={linkParams}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
           />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

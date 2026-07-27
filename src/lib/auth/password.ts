@@ -23,7 +23,7 @@ export async function verifyPassword(passwordHash: string, password: string): Pr
 
 const GENERATOR_ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_=+";
 
-/** Erzeugt ein zufaelliges Passwort, das die Staerkeanforderungen sicher erfuellt. */
+/** Erzeugt ein zufälliges Passwort, das die Stärkeanforderungen sicher erfüllt. */
 export function generatePassword(length = 20): string {
   for (let attempt = 0; attempt < 20; attempt++) {
     const bytes = randomBytes(length);

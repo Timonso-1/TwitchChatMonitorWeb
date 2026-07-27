@@ -1,7 +1,9 @@
 import "server-only";
-import { and, count, desc, eq, gte, like, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { adminWatchTerms, messages } from "@/lib/db/schema";
+import { inRange } from "@/lib/queries/range-filter";
+import type { ResolvedRange } from "@/lib/range";
 import { findMatches, type TermMatch, type WatchTermLike } from "@/lib/watchlist";
 
 export interface WatchTermRow {
@@ -95,8 +97,8 @@ export interface WatchHitFilters {
   channelUuid?: string;
   /** Nur Treffer ab dieser Stufe. */
   severity?: string;
-  /** Zeitraum in Tagen. */
-  days?: number;
+  /** Zeitraum – ohne Angabe wird der gesamte Bestand durchsucht. */
+  range?: ResolvedRange;
   page: number;
   pageSize: number;
 }
@@ -121,13 +123,11 @@ export async function findWatchHits(
   if (termCondition) conditions.push(termCondition);
   if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
 
-  if (filters.days) {
-    conditions.push(gte(messages.receivedAt, new Date(Date.now() - filters.days * 24 * 60 * 60 * 1000)));
-  }
+  if (filters.range) conditions.push(inRange(messages.receivedAt, filters.range));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Grosszuegig laden, weil die Feinpruefung noch Zeilen aussortiert.
+  // Großzügig laden, weil die Feinprüfung noch Zeilen aussortiert.
   const scanLimit = filters.pageSize * filters.page * 4;
 
   const [totalRow, candidates] = await Promise.all([
@@ -180,18 +180,16 @@ export interface TermStat {
 }
 
 /**
- * Zaehlt Treffer je Begriff – fuer die Uebersicht in der Verwaltung.
+ * Zählt Treffer je Begriff – für die Uebersicht in der Verwaltung.
  *
  * Bewusst EINE Abfrage mit bedingten Summen statt einer pro Begriff:
- * bei zwanzig Begriffen waeren das sonst zwanzig Roundtrips zur Datenbank,
- * was ueber eine langsame Verbindung deutlich spuerbar ist.
+ * bei zwanzig Begriffen wären das sonst zwanzig Roundtrips zur Datenbank,
+ * was über eine langsame Verbindung deutlich spürbar ist.
  */
-export async function getTermStats(terms: WatchTermLike[], days = 30): Promise<TermStat[]> {
+export async function getTermStats(terms: WatchTermLike[], range: ResolvedRange): Promise<TermStat[]> {
   if (terms.length === 0) return [];
 
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-  // Je Begriff zwei Ausdruecke: Trefferzahl und juengster Treffer.
+  // Je Begriff zwei Ausdrücke: Trefferzahl und jüngster Treffer.
   const selection: Record<string, SQL> = {};
 
   for (const term of terms) {
@@ -207,7 +205,7 @@ export async function getTermStats(terms: WatchTermLike[], days = 30): Promise<T
   const [row] = await db
     .select(selection)
     .from(messages)
-    .where(gte(messages.receivedAt, since));
+    .where(inRange(messages.receivedAt, range));
 
   const stats: TermStat[] = terms.map((term) => {
     const hits = Number((row as Record<string, unknown>)?.[`c${term.id}`] ?? 0);

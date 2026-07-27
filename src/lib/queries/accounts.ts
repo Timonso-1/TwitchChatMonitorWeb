@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gt, inArray, like, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   adminAuditLog,
@@ -46,7 +46,7 @@ export interface AccountFilters {
   pageSize: number;
 }
 
-/** Laedt Rollen fuer mehrere Accounts in einer Abfrage. */
+/** Lädt Rollen für mehrere Accounts in einer Abfrage. */
 async function loadRolesFor(userUuids: string[]): Promise<Map<string, AccountRole[]>> {
   const result = new Map<string, AccountRole[]>();
   if (userUuids.length === 0) return result;
@@ -74,7 +74,7 @@ async function loadRolesFor(userUuids: string[]): Promise<Map<string, AccountRol
   return result;
 }
 
-/** Zaehlt aktive Sessions je Account. */
+/** Zählt aktive Sessions je Account. */
 async function loadSessionCounts(userUuids: string[]): Promise<Map<string, number>> {
   const result = new Map<string, number>();
   if (userUuids.length === 0) return result;
@@ -87,6 +87,30 @@ async function loadSessionCounts(userUuids: string[]): Promise<Map<string, numbe
 
   for (const row of rows) result.set(row.userUuid, row.total);
   return result;
+}
+
+export interface AccountStats {
+  total: number;
+  active: number;
+  locked: number;
+  no2fa: number;
+}
+
+/** Kennzahlen unabhängig von Filter und Seite – für die Kopfzeile der Accounts-Übersicht. */
+export async function getAccountStats(): Promise<AccountStats> {
+  const [totalRow, activeRow, lockedRow, no2faRow] = await Promise.all([
+    db.select({ value: count() }).from(adminUsers),
+    db.select({ value: count() }).from(adminUsers).where(eq(adminUsers.isActive, true)),
+    db.select({ value: count() }).from(adminUsers).where(gt(adminUsers.lockedUntil, new Date())),
+    db.select({ value: count() }).from(adminUsers).where(eq(adminUsers.totpEnabled, false)),
+  ]);
+
+  return {
+    total: totalRow[0]?.value ?? 0,
+    active: activeRow[0]?.value ?? 0,
+    locked: lockedRow[0]?.value ?? 0,
+    no2fa: no2faRow[0]?.value ?? 0,
+  };
 }
 
 export async function listAccounts(filters: AccountFilters): Promise<{
@@ -328,6 +352,32 @@ export interface AuditListItem {
   note: string | null;
   metadata: unknown;
   createdAt: Date;
+}
+
+export interface AuditStats {
+  total: number;
+  failures24h: number;
+  lastEntryAt: Date | null;
+}
+
+/** Kennzahlen unabhängig von Filter und Seite – für die Kopfzeile des Audit-Logs. */
+export async function getAuditStats(): Promise<AuditStats> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [totalRow, failureRow, lastRow] = await Promise.all([
+    db.select({ value: count() }).from(adminAuditLog),
+    db
+      .select({ value: count() })
+      .from(adminAuditLog)
+      .where(and(eq(adminAuditLog.outcome, "failure"), gte(adminAuditLog.createdAt, since))),
+    db.select({ createdAt: adminAuditLog.createdAt }).from(adminAuditLog).orderBy(desc(adminAuditLog.createdAt)).limit(1),
+  ]);
+
+  return {
+    total: totalRow[0]?.value ?? 0,
+    failures24h: failureRow[0]?.value ?? 0,
+    lastEntryAt: lastRow[0]?.createdAt ?? null,
+  };
 }
 
 export async function listAuditEntries(filters: AuditFilters): Promise<{

@@ -16,12 +16,12 @@ export function ProfilePasswordForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Passwort ändern</CardTitle>
+        <CardTitle className="text-base">Passwort ändern</CardTitle>
         <CardDescription>Nach der Änderung werden alle anderen Sitzungen beendet.</CardDescription>
       </CardHeader>
 
       <CardContent>
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-5">
           {state.status === "error" && state.message && <Alert variant="destructive">{state.message}</Alert>}
           {state.status === "success" && state.message && <Alert variant="success">{state.message}</Alert>}
 

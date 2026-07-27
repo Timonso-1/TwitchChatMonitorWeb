@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
 import { ModerationBadge } from "@/components/twitch-badges";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -15,7 +15,8 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { listModerationActionTypes, listModerationActions } from "@/lib/queries/twitch";
-import { TREND_RANGES, getModerationTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
+import { getModerationTrend } from "@/lib/queries/trends";
+import { TREND_PRESETS, rangeParams, resolveRange } from "@/lib/range";
 import { formatDuration, moderationActionLabel } from "@/lib/twitch";
 import { buildQueryString, formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
@@ -35,20 +36,26 @@ export default async function ModerationPage({
   const channelUuid = parseSearchParam(params.channel);
   const action = parseSearchParam(params.action);
   const target = parseSearchParam(params.target);
-  const from = parseSearchParam(params.from);
-  const to = parseSearchParam(params.to);
   const page = parsePositiveInt(params.page, 1);
-  const range = normalizeTrendRange(params.range);
-  const label = rangeLabel(range);
+  const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
   const [channels, actionTypes, { items, total }, trend] = await Promise.all([
     listChannelOptions(),
     listModerationActionTypes(),
-    listModerationActions({ channelUuid, action, target, from, to, page, pageSize: PAGE_SIZE }),
+    listModerationActions({
+      channelUuid,
+      action,
+      target,
+      from: range.fromDate,
+      to: range.toDate,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
     getModerationTrend(range),
   ]);
 
-  const activeFilters = { channel: channelUuid, action, target, from, to };
+  const label = range.label;
+  const activeFilters = { channel: channelUuid, action, target };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
   const canExport = hasPermission(session.user.permissions, PERMISSIONS.MODERATION_EXPORT);
 
@@ -60,7 +67,10 @@ export default async function ModerationPage({
         actions={
           canExport ? (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/moderation/export${buildQueryString(activeFilters)}`} prefetch={false}>
+              <Link
+                href={`/moderation/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
+                prefetch={false}
+              >
                 <Download />
                 CSV-Export
               </Link>
@@ -72,9 +82,8 @@ export default async function ModerationPage({
       <ListTrendHeader
         basePath="/moderation"
         params={activeFilters}
-        rangeOptions={TREND_RANGES}
+        presets={TREND_PRESETS}
         range={range}
-        rangeLabel={label}
         title="Moderationsaufkommen"
         description="Durchgeführte Maßnahmen pro Tag"
         points={trend.points}
@@ -118,19 +127,13 @@ export default async function ModerationPage({
           <Input name="target" defaultValue={target ?? ""} placeholder="Benutzername" />
         </FilterField>
 
-        <FilterField label="Von" className="w-full space-y-1.5 sm:w-40">
-          <Input type="date" name="from" defaultValue={from ?? ""} />
-        </FilterField>
-
-        <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
-          <Input type="date" name="to" defaultValue={to ?? ""} />
-        </FilterField>
-
-        <input type="hidden" name="range" value={range} />
+        {/* Der Zeitraum steuert Diagramm und Tabelle – er muss das Filtern überleben. */}
+        {Object.entries(rangeParams(range)).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
       </FilterBar>
 
-      <Card>
-        <CardContent className="p-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -145,7 +148,7 @@ export default async function ModerationPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={7}>Keine Moderationsaktionen gefunden.</TableEmpty>
+                <TableEmpty colSpan={7} title="Keine Moderationsaktionen gefunden" />
               ) : (
                 items.map((entry) => (
                   <TableRow key={entry.id}>
@@ -178,13 +181,12 @@ export default async function ModerationPage({
 
           <Pagination
             basePath="/moderation"
-            params={{ ...activeFilters, range }}
+            params={{ ...activeFilters, ...rangeParams(range) }}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
           />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

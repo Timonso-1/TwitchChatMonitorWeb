@@ -3,7 +3,7 @@
  *
  * Bewusst ohne Bibliothek: es geht nur darum, in der Sitzungsliste
  * "Chrome auf Windows" statt eines 120 Zeichen langen Roh-Strings zu zeigen.
- * Für Statistik oder Feature-Erkennung waere das zu ungenau.
+ * Für Statistik oder Feature-Erkennung wäre das zu ungenau.
  */
 
 export type DeviceKind = "desktop" | "mobile" | "tablet" | "bot" | "unknown";
@@ -93,7 +93,7 @@ export function formatIpAddress(ip: string | null | undefined): string {
   // Loopback-Adressen sind in der Praxis "der Server selbst".
   if (ip === "::1" || ip === "127.0.0.1") return "Lokal";
 
-  // IPv4-mapped IPv6 auf die IPv4-Form kuerzen.
+  // IPv4-mapped IPv6 auf die IPv4-Form kürzen.
   const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
   return mapped ? mapped[1] : ip;
 }

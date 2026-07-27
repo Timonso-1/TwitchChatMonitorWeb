@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
 import { EventBadge, SubTierBadge } from "@/components/twitch-badges";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -15,7 +15,8 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { listEventTypes, listEvents } from "@/lib/queries/twitch";
-import { TREND_RANGES, getEventTrend, normalizeTrendRange, rangeLabel } from "@/lib/queries/trends";
+import { getEventTrend } from "@/lib/queries/trends";
+import { TREND_PRESETS, rangeParams, resolveRange } from "@/lib/range";
 import { eventDetailText, eventTypeLabel } from "@/lib/twitch";
 import { buildQueryString, formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
@@ -35,20 +36,26 @@ export default async function EventsPage({
   const channelUuid = parseSearchParam(params.channel);
   const eventType = parseSearchParam(params.type);
   const user = parseSearchParam(params.user);
-  const from = parseSearchParam(params.from);
-  const to = parseSearchParam(params.to);
   const page = parsePositiveInt(params.page, 1);
-  const range = normalizeTrendRange(params.range);
-  const label = rangeLabel(range);
+  const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
   const [channels, eventTypes, { items, total }, trend] = await Promise.all([
     listChannelOptions(),
     listEventTypes(),
-    listEvents({ channelUuid, eventType, user, from, to, page, pageSize: PAGE_SIZE }),
+    listEvents({
+      channelUuid,
+      eventType,
+      user,
+      from: range.fromDate,
+      to: range.toDate,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
     getEventTrend(range),
   ]);
 
-  const activeFilters = { channel: channelUuid, type: eventType, user, from, to };
+  const label = range.label;
+  const activeFilters = { channel: channelUuid, type: eventType, user };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
   const canExport = hasPermission(session.user.permissions, PERMISSIONS.EVENTS_EXPORT);
 
@@ -60,7 +67,10 @@ export default async function EventsPage({
         actions={
           canExport ? (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/events/export${buildQueryString(activeFilters)}`} prefetch={false}>
+              <Link
+                href={`/events/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
+                prefetch={false}
+              >
                 <Download />
                 CSV-Export
               </Link>
@@ -72,9 +82,8 @@ export default async function EventsPage({
       <ListTrendHeader
         basePath="/events"
         params={activeFilters}
-        rangeOptions={TREND_RANGES}
+        presets={TREND_PRESETS}
         range={range}
-        rangeLabel={label}
         title="Event-Aufkommen"
         description="Aufgezeichnete Channel-Ereignisse pro Tag"
         points={trend.points}
@@ -118,19 +127,13 @@ export default async function EventsPage({
           <Input name="user" defaultValue={user ?? ""} placeholder="Benutzername" />
         </FilterField>
 
-        <FilterField label="Von" className="w-full space-y-1.5 sm:w-40">
-          <Input type="date" name="from" defaultValue={from ?? ""} />
-        </FilterField>
-
-        <FilterField label="Bis" className="w-full space-y-1.5 sm:w-40">
-          <Input type="date" name="to" defaultValue={to ?? ""} />
-        </FilterField>
-
-        <input type="hidden" name="range" value={range} />
+        {/* Der Zeitraum steuert Diagramm und Tabelle – er muss das Filtern überleben. */}
+        {Object.entries(rangeParams(range)).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
       </FilterBar>
 
-      <Card>
-        <CardContent className="p-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -144,7 +147,7 @@ export default async function EventsPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={6}>Keine Events gefunden.</TableEmpty>
+                <TableEmpty colSpan={6} title="Keine Events gefunden" />
               ) : (
                 items.map((event) => (
                   <TableRow key={event.id}>
@@ -186,13 +189,12 @@ export default async function EventsPage({
 
           <Pagination
             basePath="/events"
-            params={{ ...activeFilters, range }}
+            params={{ ...activeFilters, ...rangeParams(range) }}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
           />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

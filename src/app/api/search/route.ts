@@ -6,10 +6,10 @@ import { db } from "@/lib/db";
 import { channels, viewers } from "@/lib/db/schema";
 
 /**
- * Globale Suche fuer die Befehlspalette.
+ * Globale Suche für die Befehlspalette.
  *
- * Nachrichten werden bewusst nicht durchsucht: eine Volltextsuche ueber
- * Millionen Zeilen waere zu langsam fuer Eingaben waehrend des Tippens.
+ * Nachrichten werden bewusst nicht durchsucht: eine Volltextsuche über
+ * Millionen Zeilen wäre zu langsam für Eingaben während des Tippens.
  * Stattdessen wird auf die Nachrichtensuche verlinkt.
  */
 

@@ -11,7 +11,7 @@ interface TwitchProfileLinkProps {
 }
 
 /**
- * Verlinkt den oeffentlichen Twitch-Kanal eines Nutzers.
+ * Verlinkt den öffentlichen Twitch-Kanal eines Nutzers.
  * Bewusst mit rel="noopener noreferrer", weil das Ziel ausserhalb liegt.
  */
 export function TwitchProfileLink({ login, withLabel, size = "md", className }: TwitchProfileLinkProps) {

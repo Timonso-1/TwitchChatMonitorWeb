@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -60,8 +60,7 @@ export default async function ChannelsPage({
         </FilterField>
       </FilterBar>
 
-      <Card>
-        <CardContent className="p-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -75,7 +74,7 @@ export default async function ChannelsPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={6}>Keine Channels gefunden.</TableEmpty>
+                <TableEmpty colSpan={6} title="Keine Channels gefunden" />
               ) : (
                 items.map((channel) => (
                   <TableRow key={channel.uuid}>
@@ -124,8 +123,7 @@ export default async function ChannelsPage({
             pageSize={PAGE_SIZE}
             total={total}
           />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

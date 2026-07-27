@@ -8,10 +8,10 @@ import { getActiveWatchTerms } from "@/lib/queries/watchlist";
 import { findMatches } from "@/lib/watchlist";
 
 /**
- * Liefert neue Chatnachrichten fuer die Live-Ansicht.
+ * Liefert neue Chatnachrichten für die Live-Ansicht.
  *
  * Bewusst als einfaches Polling statt WebSocket: der Bot schreibt in die
- * Datenbank, das Panel liest daraus. Ein Push-Kanal waere zusaetzliche
+ * Datenbank, das Panel liest daraus. Ein Push-Kanal wäre zusätzliche
  * Infrastruktur ohne echten Gewinn bei Intervallen von wenigen Sekunden.
  */
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     const terms = await getActiveWatchTerms();
 
-    // Aelteste zuerst, damit die Liste chronologisch waechst.
+    // Aelteste zuerst, damit die Liste chronologisch wächst.
     const ordered = rows.reverse().map((row) => ({
       ...row,
       receivedAt: row.receivedAt.toISOString(),

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Entspricht dem Marken-Quadrat: secondary-Hintergrund + Twitch-Icon -->
+  <rect width="32" height="32" rx="8" fill="#212121"/>
+  <g
+    transform="translate(6 6) scale(0.833333)"
+    stroke="#f5f5f5"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M21 2H3v16h5v4l4-4h5l4-4V2zm-10 9V7m5 4V7"/>
+  </g>
+</svg>

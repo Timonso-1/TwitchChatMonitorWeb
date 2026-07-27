@@ -10,8 +10,8 @@ const DEVICE_ICONS: Record<DeviceKind, typeof Monitor> = {
 };
 
 /**
- * Zeigt eine Sitzung als Geraet statt als Roh-String.
- * Der vollstaendige User-Agent bleibt im Tooltip erhalten.
+ * Zeigt eine Sitzung als Gerät statt als Roh-String.
+ * Der vollständige User-Agent bleibt im Tooltip erhalten.
  */
 export function SessionDevice({ userAgent }: { userAgent: string | null }) {
   const parsed = parseUserAgent(userAgent);

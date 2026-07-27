@@ -53,7 +53,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 CardFooter.displayName = "CardFooter";
 
 /**
- * Beschriftetes Wertepaar fuer Detailkarten – die Optik der
+ * Beschriftetes Wertepaar für Detailkarten – die Optik der
  * Grund/Status/Erstellt-Felder aus der Referenz.
  */
 function CardField({

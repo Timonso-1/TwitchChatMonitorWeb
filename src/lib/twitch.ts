@@ -1,7 +1,7 @@
 /**
- * Aufbereitung der Twitch-Rohwerte fuer die Anzeige.
- * Bewusst frei von Node- und Server-Abhaengigkeiten, damit die Helfer
- * auch in Client-Komponenten verwendet werden koennen.
+ * Aufbereitung der Twitch-Rohwerte für die Anzeige.
+ * Bewusst frei von Node- und Server-Abhängigkeiten, damit die Helfer
+ * auch in Client-Komponenten verwendet werden können.
  */
 
 export type SubTier = "prime" | "1" | "2" | "3" | "unknown";
@@ -9,7 +9,7 @@ export type SubTier = "prime" | "1" | "2" | "3" | "unknown";
 /**
  * Twitch liefert Abo-Stufen als "1000", "2000", "3000" bzw. "Prime"
  * (IRC-Tag `msg-param-sub-plan`, EventSub-Feld `tier`).
- * Diese Rohwerte werden hier auf die vier tatsaechlichen Stufen abgebildet.
+ * Diese Rohwerte werden hier auf die vier tatsächlichen Stufen abgebildet.
  */
 export function normalizeSubTier(raw: string | null | undefined): SubTier {
   if (!raw) return "unknown";
@@ -32,7 +32,7 @@ const SUB_TIER_LABELS: Record<SubTier, string> = {
   unknown: "—",
 };
 
-/** Kurzform fuer die Anzeige, z. B. "Tier 2" oder "Prime". */
+/** Kurzform für die Anzeige, z. B. "Tier 2" oder "Prime". */
 export function subTierLabel(raw: string | null | undefined): string {
   return SUB_TIER_LABELS[normalizeSubTier(raw)];
 }
@@ -46,7 +46,7 @@ export const SUB_TIER_COLORS: Record<SubTier, string> = {
   unknown: "#71717a",
 };
 
-/** Alle auswaehlbaren Stufen fuer Filter-Dropdowns. */
+/** Alle auswählbaren Stufen für Filter-Dropdowns. */
 export const SUB_TIER_OPTIONS: Array<{ value: Exclude<SubTier, "unknown">; label: string }> = [
   { value: "prime", label: "Prime" },
   { value: "1", label: "Tier 1" },
@@ -55,7 +55,7 @@ export const SUB_TIER_OPTIONS: Array<{ value: Exclude<SubTier, "unknown">; label
 ];
 
 /**
- * Liefert die Rohwerte, die zu einer Stufe passen – noetig fuer
+ * Liefert die Rohwerte, die zu einer Stufe passen – nötig für
  * Datenbankfilter, weil dort noch "1000" statt "1" steht.
  */
 export function subTierRawValues(tier: Exclude<SubTier, "unknown">): string[] {
@@ -236,7 +236,7 @@ export function darkenForLightBackground(color: string, targetLuminance = 0.22):
 export interface ChatColorPair {
   /** Originalfarbe – gut lesbar auf dunklem Hintergrund. */
   dark: string;
-  /** Abgedunkelte Variante fuer den hellen Modus. */
+  /** Abgedunkelte Variante für den hellen Modus. */
   light: string;
 }
 

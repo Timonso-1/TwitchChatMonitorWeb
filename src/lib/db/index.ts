@@ -14,7 +14,7 @@ function createPool(): mysql.Pool {
   const required = ["DB_HOST", "DB_USER", "DB_NAME"] as const;
   for (const key of required) {
     if (!process.env[key]) {
-      throw new Error(`Umgebungsvariable ${key} fehlt. Bitte .env pruefen.`);
+      throw new Error(`Umgebungsvariable ${key} fehlt. Bitte .env prüfen.`);
     }
   }
 
@@ -24,7 +24,7 @@ function createPool(): mysql.Pool {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD ?? "",
     database: process.env.DB_NAME,
-    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? 10),
+    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? 15),
     waitForConnections: true,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10_000,

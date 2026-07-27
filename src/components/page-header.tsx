@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
   title: string;
@@ -9,12 +10,18 @@ interface PageHeaderProps {
   actions?: ReactNode;
   /** Zeigt einen Zurück-Pfeil links neben dem Titel. */
   backHref?: string;
+  className?: string;
 }
 
-export function PageHeader({ title, description, actions, backHref }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, backHref, className }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 items-start gap-2">
+    <div
+      className={cn(
+        "flex flex-col gap-4 border-b border-[var(--color-border)] pb-5 sm:flex-row sm:items-end sm:justify-between",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-2.5">
         {backHref && (
           <Button variant="ghost" size="icon" asChild className="mt-0.5 shrink-0">
             <Link href={backHref} aria-label="Zurück">
@@ -23,9 +30,11 @@ export function PageHeader({ title, description, actions, backHref }: PageHeader
           </Button>
         )}
 
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 space-y-1.5">
           <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
-          {description && <p className="text-sm text-[var(--color-muted-foreground)]">{description}</p>}
+          {description && (
+            <p className="max-w-2xl text-sm leading-relaxed text-[var(--color-muted-foreground)]">{description}</p>
+          )}
         </div>
       </div>
 

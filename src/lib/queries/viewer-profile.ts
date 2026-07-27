@@ -74,7 +74,7 @@ export interface ViewerProfile {
   /** Kennzahlen */
   bitsTotal: number;
   subMonthsMax: number | null;
-  /** Hoechste jemals beobachtete Abo-Stufe (Rohwert aus der Datenbank). */
+  /** Höchste jemals beobachtete Abo-Stufe (Rohwert aus der Datenbank). */
   highestSubTier: string | null;
   moderationCount: number;
   banCount: number;
@@ -97,9 +97,9 @@ export interface ViewerProfile {
 }
 
 /**
- * Laedt das vollstaendige Profil eines Zuschauers.
+ * Lädt das vollständige Profil eines Zuschauers.
  * `includeNotes` steuert, ob die internen Notizen mitgeladen werden –
- * so wird das Recht bereits auf Query-Ebene beruecksichtigt.
+ * so wird das Recht bereits auf Query-Ebene berücksichtigt.
  */
 export async function getViewerProfile(
   userId: string,
@@ -263,7 +263,7 @@ export async function getViewerProfile(
   ]);
 
   const subStats = subStatsRow[0];
-  // Prime schlaegt keine hoehere Zahlenstufe, wird aber angezeigt, wenn es das Einzige ist.
+  // Prime schlägt keine höhere Zahlenstufe, wird aber angezeigt, wenn es das Einzige ist.
   const highestSubTier = subStats?.maxTier ?? (subStats?.hasPrime ? "Prime" : null);
 
   return {
@@ -292,7 +292,7 @@ export async function getViewerProfile(
 }
 
 // ---------------------------------------------------------------------------
-// Blaetterbare Detaillisten fuer die Reiter des Profils
+// Blätterbare Detaillisten für die Reiter des Profils
 // ---------------------------------------------------------------------------
 
 export interface PagedResult<T> {
@@ -440,24 +440,24 @@ export async function getViewerModerationPage(
 }
 
 export interface SubscriptionSpan {
-  /** Hoechste beobachtete Abo-Dauer in Monaten. */
+  /** Höchste beobachtete Abo-Dauer in Monaten. */
   maxMonths: number;
-  /** Wann diese Dauer zuletzt bestaetigt wurde. */
+  /** Wann diese Dauer zuletzt bestätigt wurde. */
   lastSeenAt: Date;
   /** Erste Nachricht, in der ein Abo-Abzeichen auftauchte. */
   firstSubAt: Date | null;
-  /** War der Nutzer Gruender des Kanals? */
+  /** War der Nutzer Gründer des Kanals? */
   isFounder: boolean;
 }
 
 /**
- * Liest die tatsaechliche Abo-Dauer aus `badge_info` der Chatnachrichten.
+ * Liest die tatsächliche Abo-Dauer aus `badge_info` der Chatnachrichten.
  *
  * Das ist genauer als die Event-Daten: `badge_info` kommt bei JEDER Nachricht
- * mit und nennt die laufende Monatszahl, waehrend Events nur zum Zeitpunkt
- * einer Verlaengerung entstehen.
+ * mit und nennt die laufende Monatszahl, während Events nur zum Zeitpunkt
+ * einer Verlängerung entstehen.
  *
- * Betrachtet werden die neuesten 5000 Nachrichten des Nutzers – das genuegt,
+ * Betrachtet werden die neuesten 5000 Nachrichten des Nutzers – das genügt,
  * um den aktuellen Stand zu bestimmen, ohne die Datenbank zu belasten.
  */
 export async function getSubscriptionInfo(userId: string): Promise<SubscriptionSpan | null> {
@@ -506,7 +506,7 @@ export interface ViewerActivityPoint {
   messages: number;
 }
 
-/** Taeglicher Nachrichtenverlauf eines Zuschauers, Luecken aufgefuellt. */
+/** Täglicher Nachrichtenverlauf eines Zuschauers, Lücken aufgefüllt. */
 export async function getViewerActivity(userId: string, days = 30): Promise<ViewerActivityPoint[]> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   since.setHours(0, 0, 0, 0);
@@ -587,7 +587,7 @@ export async function getViewerWeekdayDistribution(userId: string): Promise<Week
 
 /**
  * Filtert eine Liste von Twitch-User-IDs auf die, die in der
- * Chatdatenbank bekannt sind – fuer Verlinkungen aus dem Konverter.
+ * Chatdatenbank bekannt sind – für Verlinkungen aus dem Konverter.
  */
 export async function getKnownViewerIds(userIds: string[]): Promise<Set<string>> {
   if (userIds.length === 0) return new Set();
@@ -600,7 +600,7 @@ export async function getKnownViewerIds(userIds: string[]): Promise<Set<string>>
   return new Set(rows.map((row) => row.userId));
 }
 
-/** Zaehlt Notizen fuer mehrere Zuschauer – fuer die Markierung in der Liste. */
+/** Zählt Notizen für mehrere Zuschauer – für die Markierung in der Liste. */
 export async function countNotesForViewers(userIds: string[]): Promise<Map<string, number>> {
   const result = new Map<string, number>();
   if (userIds.length === 0) return result;

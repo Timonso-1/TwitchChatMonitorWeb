@@ -4,9 +4,9 @@ import { randomToken, sha256 } from "./crypto";
 /**
  * Twitch-Anmeldung nach dem Authorization-Code-Flow.
  *
- * Das Panel nutzt Twitch ausschliesslich zur Identitaetsfeststellung –
+ * Das Panel nutzt Twitch ausschliesslich zur Identitätsfeststellung –
  * es werden keine Tokens gespeichert. Nach dem Abruf der eigenen
- * Twitch-Identitaet wird das Zugangstoken sofort verworfen.
+ * Twitch-Identität wird das Zugangstoken sofort verworfen.
  */
 
 const AUTHORIZE_URL = "https://id.twitch.tv/oauth2/authorize";
@@ -23,7 +23,7 @@ export function isTwitchOAuthConfigured(): boolean {
 }
 
 /**
- * Muss exakt mit dem Eintrag in der Twitch-Anwendung uebereinstimmen –
+ * Muss exakt mit dem Eintrag in der Twitch-Anwendung übereinstimmen –
  * Twitch vergleicht zeichengenau.
  */
 export function getRedirectUri(): string | null {
@@ -80,7 +80,7 @@ export interface TwitchIdentity {
   profileImageUrl: string | null;
 }
 
-/** Tauscht den Autorisierungscode gegen ein Token und liest die Identitaet aus. */
+/** Tauscht den Autorisierungscode gegen ein Token und liest die Identität aus. */
 export async function exchangeCodeForIdentity(code: string): Promise<TwitchIdentity | null> {
   const clientId = process.env.TWITCH_CLIENT_ID;
   const clientSecret = process.env.TWITCH_CLIENT_SECRET;

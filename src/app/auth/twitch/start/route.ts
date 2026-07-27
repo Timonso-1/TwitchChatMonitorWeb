@@ -12,13 +12,13 @@ import {
 /**
  * Startet die Twitch-Anmeldung.
  * Der State liegt gehasht in der URL und im Klartext im Cookie –
- * so laesst sich der Rueckweg pruefen, ohne das Geheimnis preiszugeben.
+ * so lässt sich der Rückweg prüfen, ohne das Geheimnis preiszugeben.
  */
 export async function GET(request: Request) {
   const session = await getSession();
 
-  // Nur angemeldete Nutzer duerfen verknuepfen – die Verknuepfung
-  // ersetzt den Login nicht, sie ergaenzt ihn.
+  // Nur angemeldete Nutzer dürfen verknüpfen – die Verknüpfung
+  // ersetzt den Login nicht, sie ergänzt ihn.
   if (!session) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

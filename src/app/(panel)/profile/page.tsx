@@ -73,83 +73,76 @@ export default async function ProfilePage() {
   ];
 
   const openIssues = checks.filter((check) => !check.ok).length;
+  const displayName = account.twitchDisplayName ?? account.displayName ?? account.username;
 
   return (
     <>
-      {/* Kopfbereich mit allen Stammdaten */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      {/* Identitätskarte: Avatar/Rollen oben, Stammdaten als Kachelraster */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:gap-5">
             {account.twitchProfileImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={account.twitchProfileImageUrl}
                 alt=""
                 aria-hidden
-                className="size-16 shrink-0 rounded-lg object-cover"
+                className="size-16 shrink-0 rounded-xl object-cover ring-1 ring-[var(--color-border)]"
               />
             ) : (
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-[var(--color-secondary)] text-xl font-semibold">
-                {(account.displayName ?? account.username).slice(0, 2).toUpperCase()}
+              <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-[var(--color-secondary)] text-xl font-semibold ring-1 ring-[var(--color-border)]">
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
             )}
 
             <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-semibold tracking-tight">
-                  {account.twitchDisplayName ?? account.displayName ?? account.username}
-                </h1>
-                {account.roles.map((role) => (
-                  <RoleChip key={role.uuid} name={role.name} color={role.color} />
-                ))}
-                {account.twitchLogin && <TwitchProfileLink login={account.twitchLogin} size="sm" />}
-              </div>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-2xl font-semibold tracking-tight">{displayName}</h1>
+                  {account.twitchLogin && <TwitchProfileLink login={account.twitchLogin} size="sm" />}
+                </div>
 
-              <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <dt className="text-xs text-[var(--color-subtle)]">Benutzername</dt>
-                  <dd className="truncate">@{account.username}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-subtle)]">E-Mail</dt>
-                  <dd className="truncate">{account.email}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-subtle)]">Angelegt</dt>
-                  <dd>{formatDateTime(account.createdAt)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-subtle)]">Letzte Anmeldung</dt>
-                  <dd>{account.lastLoginAt ? formatRelative(account.lastLoginAt) : "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-[var(--color-subtle)]">Twitch</dt>
-                  <dd className="truncate">
-                    {account.twitchLogin ? (
-                      <>
-                        @{account.twitchLogin}
-                        <span className="ml-1.5 text-xs text-[var(--color-subtle)]">
-                          seit {formatDateTime(account.twitchLinkedAt)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-[var(--color-muted-foreground)]">Nicht verknüpft</span>
-                    )}
-                  </dd>
-                </div>
-              </dl>
+                {account.roles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {account.roles.map((role) => (
+                      <RoleChip key={role.uuid} name={role.name} color={role.color} />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
+          <dl className="grid gap-px border-t border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-2 lg:grid-cols-3">
+            <MetaTile label="Benutzername">@{account.username}</MetaTile>
+            <MetaTile label="E-Mail">{account.email}</MetaTile>
+            <MetaTile label="Angelegt">{formatDateTime(account.createdAt)}</MetaTile>
+            <MetaTile label="Letzte Anmeldung">
+              {account.lastLoginAt ? formatRelative(account.lastLoginAt) : "—"}
+            </MetaTile>
+            <MetaTile label="Twitch" className="sm:col-span-2 lg:col-span-2">
+              {account.twitchLogin ? (
+                <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span>@{account.twitchLogin}</span>
+                  <span className="text-xs font-normal text-[var(--color-subtle)]">
+                    verknüpft seit {formatDateTime(account.twitchLinkedAt)}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-[var(--color-muted-foreground)]">Nicht verknüpft</span>
+              )}
+            </MetaTile>
+          </dl>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
           <ProfilePasswordForm />
 
           <Card>
             <CardHeader>
-              <CardTitle>Aktive Sitzungen</CardTitle>
+              <CardTitle className="text-base">Aktive Sitzungen</CardTitle>
               <CardDescription>
                 Die aktuelle Sitzung ist markiert. Ein Passwortwechsel beendet alle anderen automatisch.
               </CardDescription>
@@ -202,7 +195,7 @@ export default async function ProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Deine Berechtigungen</CardTitle>
+              <CardTitle className="text-base">Deine Berechtigungen</CardTitle>
               <CardDescription>
                 {hasWildcard
                   ? "Als Superadmin hast du Zugriff auf alle Funktionen — auch auf zukünftige."
@@ -243,11 +236,10 @@ export default async function ProfilePage() {
           </Card>
         </div>
 
-        <div className="space-y-4">
-          {/* Sicherheitsübersicht */}
+        <div className="space-y-5">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 {openIssues === 0 ? (
                   <ShieldCheck className="size-4 text-[var(--color-success)]" />
                 ) : (
@@ -260,15 +252,17 @@ export default async function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {checks.map((check) => (
-                  <li key={check.label} className="flex items-start gap-2 text-sm">
+                  <li key={check.label} className="flex items-start gap-2.5 text-sm">
                     {check.ok ? (
-                      <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-[var(--color-success)]" />
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--color-success)]" />
                     ) : (
-                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--color-warning)]" />
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[var(--color-warning)]" />
                     )}
-                    <span className={cn(!check.ok && "text-[var(--color-foreground)]")}>{check.label}</span>
+                    <span className={cn("leading-snug", !check.ok && "font-medium text-[var(--color-foreground)]")}>
+                      {check.label}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -277,13 +271,13 @@ export default async function ProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 {account.totpEnabled ? (
                   <ShieldCheck className="size-4 text-[var(--color-success)]" />
                 ) : (
                   <ShieldOff className="size-4 text-[var(--color-warning)]" />
                 )}
-                Zwei-Faktor-Authentifizierung
+                Zwei-Faktor
               </CardTitle>
               <CardDescription>
                 {account.totpEnabled
@@ -296,7 +290,7 @@ export default async function ProfilePage() {
 
             <CardContent className="space-y-3">
               {account.totpEnabled && (
-                <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+                <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
                   <span className="flex items-center gap-2 text-sm">
                     <KeyRound className="size-3.5 text-[var(--color-muted-foreground)]" />
                     Recovery-Codes
@@ -317,7 +311,7 @@ export default async function ProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Palette className="size-4 text-[var(--color-muted-foreground)]" />
                 Erscheinungsbild
               </CardTitle>
@@ -330,5 +324,22 @@ export default async function ProfilePage() {
         </div>
       </div>
     </>
+  );
+}
+
+function MetaTile({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("min-w-0 space-y-1.5 bg-[var(--color-card)] px-5 py-4", className)}>
+      <dt className="text-[0.7rem] font-medium uppercase tracking-wide text-[var(--color-subtle)]">{label}</dt>
+      <dd className="truncate text-sm font-medium">{children}</dd>
+    </div>
   );
 }

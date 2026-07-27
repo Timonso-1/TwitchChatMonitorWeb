@@ -10,7 +10,7 @@ import { StatCard } from "@/components/stat-card";
 import { TwitchProfileLink } from "@/components/twitch-profile-link";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -19,13 +19,8 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { listViewers } from "@/lib/queries/twitch";
 import { countNotesForViewers } from "@/lib/queries/viewer-profile";
-import {
-  TREND_RANGES,
-  getReturningViewers,
-  getViewerTrend,
-  normalizeTrendRange,
-  rangeLabel,
-} from "@/lib/queries/trends";
+import { getReturningViewers, getViewerTrend } from "@/lib/queries/trends";
+import { TREND_PRESETS, rangeParams, rangeSentence, resolveRange } from "@/lib/range";
 import { getCachedViewerAvatars } from "@/lib/twitch-api";
 import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam, percentChange } from "@/lib/utils";
 
@@ -56,8 +51,8 @@ export default async function ViewersPage({
     | "first"
     | "name";
   const page = parsePositiveInt(params.page, 1);
-  const range = normalizeTrendRange(params.range);
-  const label = rangeLabel(range);
+  const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
+  const label = range.label;
 
   const [{ items, total }, trend, returning] = await Promise.all([
     listViewers({ search, sort, page, pageSize: PAGE_SIZE }),
@@ -73,8 +68,8 @@ export default async function ViewersPage({
     getCachedViewerAvatars(userIds),
   ]);
 
-  // Ohne vollstaendige Vorperiode waere ein Prozentwert irrefuehrend –
-  // er wuerde fehlende Aufzeichnung als Wachstum ausweisen.
+  // Ohne vollständige Vorperiode wäre ein Prozentwert irreführend –
+  // er würde fehlende Aufzeichnung als Wachstum ausweisen.
   const growth = trend.comparable ? percentChange(trend.current, trend.previous) : null;
 
   // Filter im Zeitraum-Link erhalten, damit die Tabelle nicht zurückspringt.
@@ -92,12 +87,7 @@ export default async function ViewersPage({
           title="Zuschauerentwicklung"
           description={`Bekannte Zuschauer insgesamt und Neuzugänge pro Tag · ${label}`}
           actions={
-            <RangeSelector
-              basePath="/viewers"
-              params={filterParams}
-              options={TREND_RANGES}
-              current={range}
-            />
+            <RangeSelector basePath="/viewers" params={filterParams} presets={TREND_PRESETS} range={range} />
           }
         >
           <ComposedChart
@@ -106,10 +96,10 @@ export default async function ViewersPage({
             areaSeries={{ key: "total", label: "Zuschauer insgesamt", color: "chart-1", unit: "Gesamt" }}
             lineSeries={{ key: "value", label: "Neu an diesem Tag", color: "chart-2", unit: "Neu/Tag" }}
             height={300}
-            xFormat="date"
-            labelFormat="weekday-long"
-            xLabel="Datum"
-            emptyMessage="Keine Zuschauerdaten im gewählten Zeitraum."
+            xFormat={range.hourly ? "time" : "date"}
+            labelFormat={range.hourly ? "datetime" : "weekday-long"}
+            xLabel={range.hourly ? "Uhrzeit" : "Datum"}
+            emptyMessage={`Keine Zuschauerdaten in ${rangeSentence(range)}.`}
           />
         </ChartCard>
 
@@ -130,7 +120,7 @@ export default async function ViewersPage({
             accent="brand"
             size="large"
             trend={growth}
-            trendLabel={`Vergleich mit den vorherigen ${label.toLowerCase()}`}
+            trendLabel="Vergleich mit dem gleich langen Zeitraum davor"
           />
           <StatCard
             label={`Wiederkehrende (${label})`}
@@ -165,11 +155,12 @@ export default async function ViewersPage({
         </FilterField>
 
         {/* Zeitraum beim Filtern beibehalten */}
-        <input type="hidden" name="range" value={range} />
+        {Object.entries(rangeParams(range)).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
       </FilterBar>
 
-      <Card>
-        <CardContent className="px-0 pb-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -182,7 +173,7 @@ export default async function ViewersPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={5}>Keine Zuschauer gefunden.</TableEmpty>
+                <TableEmpty colSpan={5} title="Keine Zuschauer gefunden" />
               ) : (
                 items.map((viewer) => {
                   const notes = noteCounts.get(viewer.userId) ?? 0;
@@ -235,14 +226,13 @@ export default async function ViewersPage({
 
           <Pagination
             basePath="/viewers"
-            params={{ ...filterParams, range }}
+            params={{ ...filterParams, ...rangeParams(range) }}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
             itemLabel="Zuschauern"
           />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

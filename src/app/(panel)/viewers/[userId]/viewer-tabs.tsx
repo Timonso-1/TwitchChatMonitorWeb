@@ -23,15 +23,15 @@ interface ViewerTabsNavProps {
   /** Basispfad des Profils, z. B. "/viewers/12345". */
   basePath: string;
   active: ViewerTabKey;
-  /** Sichtbare Reiter – abhaengig von den Rechten. */
+  /** Sichtbare Reiter – abhängig von den Rechten. */
   available: ViewerTabKey[];
   counts: Partial<Record<ViewerTabKey, number>>;
 }
 
 /**
  * Reiter als Links statt als Client-State.
- * Dadurch bleibt der aktive Reiter beim Blaettern erhalten und die
- * Seite laesst sich direkt auf einen Reiter verlinken.
+ * Dadurch bleibt der aktive Reiter beim Blättern erhalten und die
+ * Seite lässt sich direkt auf einen Reiter verlinken.
  */
 export function ViewerTabsNav({ basePath, active, available, counts }: ViewerTabsNavProps) {
   const tabs = VIEWER_TABS.filter((tab) => available.includes(tab.key));

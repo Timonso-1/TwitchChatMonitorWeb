@@ -4,7 +4,7 @@ interface ViewerAvatarProps {
   name: string;
   /** Profilbild aus der Twitch-API; fehlt es, werden Initialen gezeigt. */
   imageUrl?: string | null;
-  /** Chatfarbe des Nutzers – faerbt den Initialen-Fallback ein. */
+  /** Chatfarbe des Nutzers – färbt den Initialen-Fallback ein. */
   color?: string | null;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
@@ -30,7 +30,7 @@ function initials(name: string): string {
 
 /**
  * Rundes Profilbild mit Initialen-Fallback.
- * Bewusst ein natives img: die Twitch-CDN-Domain muesste sonst in
+ * Bewusst ein natives img: die Twitch-CDN-Domain müsste sonst in
  * next.config.ts freigegeben werden, und Bildoptimierung bringt hier nichts.
  */
 export function ViewerAvatar({ name, imageUrl, color, size = "md", className }: ViewerAvatarProps) {

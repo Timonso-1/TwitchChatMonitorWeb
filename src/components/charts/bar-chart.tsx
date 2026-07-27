@@ -31,13 +31,13 @@ interface BarChartProps<T extends object> {
   xKey: string;
   series: SeriesConfig[];
   height?: number;
-  /** Balken waagerecht darstellen – gut fuer Ranglisten mit langen Namen. */
+  /** Balken waagerecht darstellen – gut für Ranglisten mit langen Namen. */
   horizontal?: boolean;
   xFormat?: AxisFormat;
   labelFormat?: AxisFormat;
   valueFormat?: ValueFormat;
   emptyMessage?: string;
-  /** Faerbt jeden Balken einzeln – nur bei genau einer Serie sinnvoll. */
+  /** Färbt jeden Balken einzeln – nur bei genau einer Serie sinnvoll. */
   colorByIndex?: ChartColor[];
   /** Beschriftung unter dem Diagramm. */
   xLabel?: string;
@@ -46,10 +46,10 @@ interface BarChartProps<T extends object> {
   /**
    * Erzwingt eine Beschriftung unter jedem Balken.
    * Sinnvoll bei festen Kategorien wie Wochentagen oder Stunden,
-   * die Recharts sonst automatisch ausduennt.
+   * die Recharts sonst automatisch ausdünnt.
    */
   showAllTicks?: boolean;
-  /** Dreht die Beschriftungen, wenn sie sonst ueberlappen. */
+  /** Dreht die Beschriftungen, wenn sie sonst überlappen. */
   angledTicks?: boolean;
 }
 
@@ -107,7 +107,7 @@ export function BarChart<T extends object>({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
-                // interval 0 erzwingt jede Beschriftung; minTickGap wuerde sie sonst ausduennen.
+                // interval 0 erzwingt jede Beschriftung; minTickGap würde sie sonst ausdünnen.
                 interval={showAllTicks ? 0 : "preserveStartEnd"}
                 minTickGap={showAllTicks ? 0 : 8}
                 angle={angledTicks ? -45 : undefined}

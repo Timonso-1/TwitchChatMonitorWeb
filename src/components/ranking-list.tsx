@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { EmptyState } from "@/components/empty-state";
 import { cn, formatNumber } from "@/lib/utils";
 
 export interface RankingEntry {
@@ -37,7 +38,7 @@ const ACCENT_BAR: Record<NonNullable<RankingListProps["accent"]>, string> = {
 /**
  * Rangliste mit Anteilsbalken.
  *
- * Bewusst kein Balkendiagramm: bei einer Handvoll Eintraegen mit langen
+ * Bewusst kein Balkendiagramm: bei einer Handvoll Einträgen mit langen
  * Namen ist eine Liste lesbarer, und der Name wird nicht abgeschnitten.
  */
 export function RankingList({
@@ -48,17 +49,13 @@ export function RankingList({
   showRank = true,
 }: RankingListProps) {
   if (entries.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
-        {emptyMessage ?? "Keine Daten im gewählten Zeitraum."}
-      </p>
-    );
+    return <EmptyState compact title={emptyMessage ?? "Keine Daten im gewählten Zeitraum."} />;
   }
 
   const max = Math.max(...entries.map((entry) => entry.value), 1);
 
   return (
-    <ol className="space-y-2.5">
+    <ol className="space-y-3">
       {entries.map((entry, index) => {
         const share = Math.max(2, Math.round((entry.value / max) * 100));
 
@@ -78,22 +75,14 @@ export function RankingList({
 
               <span className="shrink-0 text-sm tabular-nums">
                 {formatNumber(entry.value)}
-                {unit && <span className="ml-1 text-xs text-[var(--color-subtle)]">{unit}</span>}
+                {unit && <span className="ml-1 text-meta">{unit}</span>}
               </span>
             </div>
 
             {entry.sublabel && (
-              <p
-                className={cn(
-                  "truncate text-xs text-[var(--color-muted-foreground)]",
-                  showRank ? "pl-6.5" : "pl-0",
-                )}
-              >
-                {entry.sublabel}
-              </p>
+              <p className={cn("truncate text-meta", showRank ? "pl-6.5" : "pl-0")}>{entry.sublabel}</p>
             )}
 
-            {/* Anteilsbalken relativ zum groessten Wert der Liste */}
             <div className="h-1 overflow-hidden rounded-full bg-[var(--color-muted)]">
               <div
                 className={cn("h-full rounded-full transition-all", ACCENT_BAR[accent])}
@@ -108,7 +97,7 @@ export function RankingList({
             {entry.href ? (
               <Link
                 href={entry.href}
-                className="block space-y-1.5 rounded-md py-0.5 transition-colors hover:bg-[var(--color-surface)]"
+                className="block space-y-1.5 rounded-md py-1 transition-colors hover:bg-[var(--color-surface)]"
               >
                 {content}
               </Link>

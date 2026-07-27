@@ -7,25 +7,21 @@ import { FilterBar, FilterField } from "@/components/filter-bar";
 import { PageHeader } from "@/components/page-header";
 import { RangeSelector } from "@/components/range-selector";
 import { StatCard } from "@/components/stat-card";
+import { PanelSurface } from "@/components/panel-surface";
+import { SectionHeader } from "@/components/section-header";
 import { Alert } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { countMessagesForScope, getEmoteStats, getEmoteTimeline } from "@/lib/queries/emotes";
+import { TREND_PRESETS, rangeParams, rangeSentence, resolveRange } from "@/lib/range";
 import { emoteImageUrl } from "@/lib/twitch-tags";
 import { formatNumber, formatRelative, parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Emotes" };
 export const dynamic = "force-dynamic";
-
-const RANGE_OPTIONS = [
-  { value: 7, label: "7 Tage" },
-  { value: 30, label: "30 Tage" },
-  { value: 90, label: "90 Tage" },
-];
 
 export default async function EmotesPage({
   searchParams,
@@ -36,14 +32,13 @@ export default async function EmotesPage({
   const params = await searchParams;
 
   const channelUuid = parseSearchParam(params.channel);
-  const rangeParam = Number(parseSearchParam(params.range));
-  const range = RANGE_OPTIONS.find((option) => option.value === rangeParam)?.value ?? 30;
+  const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
   const [channels, stats, timeline, totalMessages] = await Promise.all([
     listChannelOptions(),
-    getEmoteStats({ channelUuid, days: range, limit: 60 }),
+    getEmoteStats({ channelUuid, range, limit: 60 }),
     getEmoteTimeline({ channelUuid }, range),
-    countMessagesForScope({ channelUuid, days: range }),
+    countMessagesForScope({ channelUuid, range }),
   ]);
 
   const share = totalMessages > 0 ? Math.round((stats.scanned / totalMessages) * 100) : 0;
@@ -57,8 +52,8 @@ export default async function EmotesPage({
           <RangeSelector
             basePath="/emotes"
             params={{ channel: channelUuid }}
-            options={RANGE_OPTIONS}
-            current={range}
+            presets={TREND_PRESETS}
+            range={range}
           />
         }
       />
@@ -75,7 +70,9 @@ export default async function EmotesPage({
           </Select>
         </FilterField>
 
-        <input type="hidden" name="range" value={range} />
+        {Object.entries(rangeParams(range)).map(([key, value]) => (
+          <input key={key} type="hidden" name={key} value={value} />
+        ))}
       </FilterBar>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -109,27 +106,29 @@ export default async function EmotesPage({
         </Alert>
       )}
 
-      <ChartCard title="Emote-Nutzung im Verlauf" description={`Verwendungen pro Tag · ${range} Tage`}>
+      <ChartCard
+        title="Emote-Nutzung im Verlauf"
+        description={`Verwendungen pro ${range.hourly ? "Stunde" : "Tag"} · ${range.label}`}
+      >
         <AreaChart
           data={timeline}
           xKey="bucket"
           series={[{ key: "uses", label: "Emote-Verwendungen", color: "chart-2" }]}
           height={200}
-          xFormat="date"
-          labelFormat="weekday-long"
-          xLabel="Datum"
+          xFormat={range.hourly ? "time" : "date"}
+          labelFormat={range.hourly ? "datetime" : "weekday-long"}
+          xLabel={range.hourly ? "Uhrzeit" : "Datum"}
           yLabel="Verwendungen"
-          emptyMessage="Keine Emote-Nutzung im Zeitraum."
+          emptyMessage={`Keine Emote-Nutzung in ${rangeSentence(range)}.`}
         />
       </ChartCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Häufigste Emotes</CardTitle>
-          <CardDescription>Sortiert nach Gesamtverwendungen im gewählten Zeitraum.</CardDescription>
-        </CardHeader>
-
-        <CardContent className="px-0 pb-0">
+      <section className="space-y-4">
+        <SectionHeader
+          title="Häufigste Emotes"
+          description="Sortiert nach Gesamtverwendungen im gewählten Zeitraum."
+        />
+        <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -144,9 +143,11 @@ export default async function EmotesPage({
 
             <TableBody>
               {stats.emotes.length === 0 ? (
-                <TableEmpty colSpan={6}>
-                  Keine Emote-Daten gefunden. Prüfe, ob der Bot das Feld <code>emotes</code> befüllt.
-                </TableEmpty>
+                <TableEmpty
+                  colSpan={6}
+                  title="Keine Emote-Daten gefunden"
+                  description="Prüfe, ob der Bot das Feld emotes befüllt."
+                />
               ) : (
                 stats.emotes.map((emote, index) => (
                   <TableRow key={emote.id}>
@@ -187,8 +188,8 @@ export default async function EmotesPage({
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </PanelSurface>
+      </section>
 
       <p className="text-xs text-[var(--color-subtle)]">
         Die Emote-Namen werden aus dem Nachrichtentext geschnitten — Twitch überträgt im Tag nur IDs und

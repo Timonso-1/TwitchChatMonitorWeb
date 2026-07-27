@@ -21,7 +21,7 @@ export function CopyButton({ value, label = "Kopieren", iconOnly, className, ...
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard-API nicht verfuegbar (z. B. ohne HTTPS) – still ignorieren.
+      // Clipboard-API nicht verfügbar (z. B. ohne HTTPS) – still ignorieren.
     }
   }
 

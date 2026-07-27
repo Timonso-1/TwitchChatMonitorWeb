@@ -1,5 +1,5 @@
 /**
- * Passwortrichtlinie ohne Node-spezifische Abhaengigkeiten,
+ * Passwortrichtlinie ohne Node-spezifische Abhängigkeiten,
  * damit sie auch in Client-Komponenten importiert werden kann.
  */
 

@@ -54,7 +54,7 @@ export function formatNumber(value: number | string | null | undefined): string 
   return new Intl.NumberFormat("de-DE").format(num);
 }
 
-/** Kompakte Zahl fuer Achsenbeschriftungen: 12.400 → "12,4 Tsd." */
+/** Kompakte Zahl für Achsenbeschriftungen: 12.400 → "12,4 Tsd." */
 export function formatCompact(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return "—";
   const num = typeof value === "string" ? Number(value) : value;
@@ -64,21 +64,21 @@ export function formatCompact(value: number | string | null | undefined): string
 }
 
 /**
- * Mindestgroesse der Vergleichsbasis. Darunter sind Prozentwerte irrefuehrend:
+ * Mindestgröße der Vergleichsbasis. Darunter sind Prozentwerte irreführend:
  * von 2 auf 20 sind zwar +900 %, sagen aber nichts aus.
  */
 export const MIN_TREND_BASE = 10;
 
 /**
- * Prozentuale Veraenderung zweier Werte.
- * Gibt null zurueck, wenn die Basis zu klein fuer eine sinnvolle Aussage ist.
+ * Prozentuale Veränderung zweier Werte.
+ * Gibt null zurück, wenn die Basis zu klein für eine sinnvolle Aussage ist.
  */
 export function percentChange(current: number, previous: number, minBase = MIN_TREND_BASE): number | null {
   if (previous < minBase) return null;
   return Math.round(((current - previous) / previous) * 100);
 }
 
-/** Kuerzt einen String auf max. `length` Zeichen. */
+/** Kürzt einen String auf max. `length` Zeichen. */
 export function truncate(value: string, length: number): string {
   return value.length > length ? `${value.slice(0, length - 1)}…` : value;
 }
@@ -98,7 +98,7 @@ export function parseSearchParam(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-/** Baut eine Query-String-Repraesentation ohne leere Werte. */
+/** Baut eine Query-String-Repräsentation ohne leere Werte. */
 export function buildQueryString(params: Record<string, string | number | undefined | null>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {

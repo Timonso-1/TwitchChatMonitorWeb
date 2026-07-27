@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { getPublicActivity, getPublicStatus, isPublicStatusEnabled } from "@/lib/queries/public-status";
 
 /**
- * Kennzahlen fuer die Anmeldeseite – bewusst OHNE Anmeldung erreichbar.
+ * Kennzahlen für die Anmeldeseite – bewusst OHNE Anmeldung erreichbar.
  *
  * Liefert ausschliesslich aggregierte Zahlen. Wer auch das nicht
- * veroeffentlichen will, setzt SHOW_PUBLIC_STATUS=false; dann antwortet
+ * veröffentlichen will, setzt SHOW_PUBLIC_STATUS=false; dann antwortet
  * die Route mit 404.
  */
 export async function GET() {

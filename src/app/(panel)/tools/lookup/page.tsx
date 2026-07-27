@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, Hash, Search, User } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, CheckCircle2, ExternalLink, Hash, Search, User, XCircle } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import { TwitchProfileLink } from "@/components/twitch-profile-link";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Alert } from "@/components/ui/alert";
@@ -76,6 +78,10 @@ export default async function LookupPage({
   const foundCount = results.filter((entry) => entry.found).length;
   const toIds = direction === "name-to-id";
 
+  const allOutputs = results
+    .map((entry) => (toIds ? entry.userId : entry.login))
+    .filter((value): value is string => Boolean(value));
+
   return (
     <>
       <PageHeader
@@ -107,12 +113,17 @@ export default async function LookupPage({
                   href={`/tools/lookup?dir=${entry.value}`}
                   aria-current={entry.value === direction ? "true" : undefined}
                   className={cn(
-                    "rounded-[5px] px-3 py-1.5 text-sm transition-colors",
+                    "flex items-center gap-1.5 rounded-[5px] px-3 py-1.5 text-sm transition-colors",
                     entry.value === direction
                       ? "bg-[var(--color-accent)] font-medium text-[var(--color-foreground)]"
                       : "text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]",
                   )}
                 >
+                  {entry.value === "name-to-id" ? (
+                    <User className="size-3.5" />
+                  ) : (
+                    <Hash className="size-3.5" />
+                  )}
                   {entry.label}
                 </Link>
               ))}
@@ -162,15 +173,33 @@ export default async function LookupPage({
       </Card>
 
       {results.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ergebnis</CardTitle>
-            <CardDescription>
-              {foundCount} von {results.length} Einträgen gefunden.
-            </CardDescription>
-          </CardHeader>
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <StatCard label="Abgefragt" value={results.length} icon={Search} />
+            <StatCard label="Gefunden" value={foundCount} icon={CheckCircle2} accent="success" />
+            <StatCard
+              label="Nicht gefunden"
+              value={results.length - foundCount}
+              icon={XCircle}
+              accent={results.length - foundCount > 0 ? "destructive" : "neutral"}
+            />
+          </div>
 
-          <CardContent className="space-y-2">
+          <Card>
+            <CardHeader className="flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle>Ergebnis</CardTitle>
+                <CardDescription>Ein Eintrag pro Zeile, in der Reihenfolge der Eingabe.</CardDescription>
+              </div>
+              {allOutputs.length > 1 && (
+                <CopyButton
+                  value={allOutputs.join("\n")}
+                  label={toIds ? "Alle IDs kopieren" : "Alle Namen kopieren"}
+                />
+              )}
+            </CardHeader>
+
+            <CardContent className="space-y-2">
             {results.map((entry) => {
               const isKnown = entry.userId ? knownIds.has(entry.userId) : false;
               const output = toIds ? entry.userId : entry.login;
@@ -260,8 +289,18 @@ export default async function LookupPage({
                 </div>
               );
             })}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {queries.length === 0 && configured && (
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="Noch keine Abfrage"
+          description={`Trage oben ${config.inputLabel.toLowerCase()} ein, um sie umzuwandeln.`}
+          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]"
+        />
       )}
     </>
   );

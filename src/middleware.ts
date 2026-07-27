@@ -6,7 +6,7 @@ const SESSION_COOKIE_NAME = "tp_session";
 const PUBLIC_PATHS = ["/login", "/forbidden"];
 
 /**
- * Leichtgewichtiger Vorfilter: prueft nur, ob ueberhaupt ein Session-Cookie
+ * Leichtgewichtiger Vorfilter: prüft nur, ob überhaupt ein Session-Cookie
  * vorhanden ist. Die eigentliche Autorisierung passiert serverseitig in den
  * Layouts und Server Actions (`requireSession` / `requirePermission`), weil
  * die Edge-Runtime keinen Datenbankzugriff hat.

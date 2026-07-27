@@ -1,5 +1,5 @@
 /**
- * Themeverwaltung ueber ein Cookie, damit der Server die Wahl bereits
+ * Themeverwaltung über ein Cookie, damit der Server die Wahl bereits
  * beim ersten Rendern kennt und nichts aufblitzt.
  */
 
@@ -19,8 +19,8 @@ export function isThemePreference(value: unknown): value is ThemePreference {
 }
 
 /**
- * Wird als Inline-Skript vor dem ersten Paint ausgefuehrt.
- * Noetig fuer "System", weil der Server die Systemeinstellung nicht kennt.
+ * Wird als Inline-Skript vor dem ersten Paint ausgeführt.
+ * Nötig für "System", weil der Server die Systemeinstellung nicht kennt.
  */
 export const THEME_INIT_SCRIPT = `
 (function () {

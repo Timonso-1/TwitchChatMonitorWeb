@@ -58,40 +58,40 @@ const ACTION_LABELS: Record<string, string> = {
   [AUDIT_ACTIONS.LOGIN_FAILED]: "Anmeldung fehlgeschlagen",
   [AUDIT_ACTIONS.LOGIN_LOCKED]: "Account gesperrt",
   [AUDIT_ACTIONS.LOGOUT]: "Abmeldung",
-  [AUDIT_ACTIONS.TWO_FACTOR_SUCCESS]: "2FA bestaetigt",
+  [AUDIT_ACTIONS.TWO_FACTOR_SUCCESS]: "2FA bestätigt",
   [AUDIT_ACTIONS.TWO_FACTOR_FAILED]: "2FA fehlgeschlagen",
   [AUDIT_ACTIONS.TWO_FACTOR_RECOVERY_USED]: "Recovery-Code verwendet",
   [AUDIT_ACTIONS.TWO_FACTOR_ENABLED]: "2FA aktiviert",
   [AUDIT_ACTIONS.TWO_FACTOR_DISABLED]: "2FA deaktiviert",
-  [AUDIT_ACTIONS.TWO_FACTOR_RESET]: "2FA zurueckgesetzt",
+  [AUDIT_ACTIONS.TWO_FACTOR_RESET]: "2FA zurückgesetzt",
   [AUDIT_ACTIONS.RECOVERY_CODES_REGENERATED]: "Recovery-Codes neu erzeugt",
-  [AUDIT_ACTIONS.PASSWORD_CHANGED]: "Passwort geaendert",
-  [AUDIT_ACTIONS.PASSWORD_RESET]: "Passwort zurueckgesetzt",
+  [AUDIT_ACTIONS.PASSWORD_CHANGED]: "Passwort geändert",
+  [AUDIT_ACTIONS.PASSWORD_RESET]: "Passwort zurückgesetzt",
   [AUDIT_ACTIONS.ACCOUNT_CREATED]: "Account angelegt",
   [AUDIT_ACTIONS.ACCOUNT_UPDATED]: "Account bearbeitet",
-  [AUDIT_ACTIONS.ACCOUNT_DELETED]: "Account geloescht",
+  [AUDIT_ACTIONS.ACCOUNT_DELETED]: "Account gelöscht",
   [AUDIT_ACTIONS.ACCOUNT_ACTIVATED]: "Account aktiviert",
   [AUDIT_ACTIONS.ACCOUNT_DEACTIVATED]: "Account deaktiviert",
-  [AUDIT_ACTIONS.ACCOUNT_ROLES_CHANGED]: "Rollen geaendert",
+  [AUDIT_ACTIONS.ACCOUNT_ROLES_CHANGED]: "Rollen geändert",
   [AUDIT_ACTIONS.ACCOUNT_SESSIONS_REVOKED]: "Sessions beendet",
   [AUDIT_ACTIONS.ROLE_CREATED]: "Rolle angelegt",
   [AUDIT_ACTIONS.ROLE_UPDATED]: "Rolle bearbeitet",
-  [AUDIT_ACTIONS.ROLE_DELETED]: "Rolle geloescht",
+  [AUDIT_ACTIONS.ROLE_DELETED]: "Rolle gelöscht",
   [AUDIT_ACTIONS.CHANNEL_CREATED]: "Channel angelegt",
   [AUDIT_ACTIONS.CHANNEL_UPDATED]: "Channel bearbeitet",
-  [AUDIT_ACTIONS.CHANNEL_DELETED]: "Channel geloescht",
+  [AUDIT_ACTIONS.CHANNEL_DELETED]: "Channel gelöscht",
   [AUDIT_ACTIONS.VIEWER_NOTE_CREATED]: "Notiz angelegt",
   [AUDIT_ACTIONS.VIEWER_NOTE_UPDATED]: "Notiz bearbeitet",
-  [AUDIT_ACTIONS.VIEWER_NOTE_DELETED]: "Notiz geloescht",
+  [AUDIT_ACTIONS.VIEWER_NOTE_DELETED]: "Notiz gelöscht",
   [AUDIT_ACTIONS.MESSAGES_EXPORTED]: "Nachrichten exportiert",
   [AUDIT_ACTIONS.EVENTS_EXPORTED]: "Events exportiert",
   [AUDIT_ACTIONS.MODERATION_EXPORTED]: "Moderationslog exportiert",
   [AUDIT_ACTIONS.WATCH_TERM_CREATED]: "Wortfilter-Begriff angelegt",
   [AUDIT_ACTIONS.WATCH_TERM_UPDATED]: "Wortfilter-Begriff bearbeitet",
   [AUDIT_ACTIONS.WATCH_TERM_DELETED]: "Wortfilter-Begriff entfernt",
-  [AUDIT_ACTIONS.TWITCH_LINKED]: "Twitch verknuepft",
-  [AUDIT_ACTIONS.TWITCH_UNLINKED]: "Twitch-Verknuepfung geloest",
-  [AUDIT_ACTIONS.TWITCH_LINK_FAILED]: "Twitch-Verknuepfung fehlgeschlagen",
+  [AUDIT_ACTIONS.TWITCH_LINKED]: "Twitch verknüpft",
+  [AUDIT_ACTIONS.TWITCH_UNLINKED]: "Twitch-Verknüpfung gelöst",
+  [AUDIT_ACTIONS.TWITCH_LINK_FAILED]: "Twitch-Verknüpfung fehlgeschlagen",
 };
 
 export function auditActionLabel(action: string): string {
@@ -111,7 +111,7 @@ export interface AuditInput {
 }
 
 /**
- * Schreibt einen Audit-Eintrag. Fehler beim Loggen duerfen den
+ * Schreibt einen Audit-Eintrag. Fehler beim Loggen dürfen den
  * eigentlichen Vorgang niemals abbrechen.
  */
 export async function writeAudit(input: AuditInput): Promise<void> {

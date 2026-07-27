@@ -17,10 +17,10 @@ function refreshThresholdSeconds(): number {
 }
 
 /**
- * Das Cookie lebt bewusst deutlich laenger als die Session in der Datenbank.
- * Massgeblich fuer die Gueltigkeit ist ausschliesslich `admin_sessions.expires_at`;
- * so kann eine Session serverseitig gleitend verlaengert werden, ohne dass das
- * Cookie bei jedem Seitenaufruf neu gesetzt werden muesste (was in React Server
+ * Das Cookie lebt bewusst deutlich länger als die Session in der Datenbank.
+ * Massgeblich für die Gültigkeit ist ausschliesslich `admin_sessions.expires_at`;
+ * so kann eine Session serverseitig gleitend verlängert werden, ohne dass das
+ * Cookie bei jedem Seitenaufruf neu gesetzt werden müsste (was in React Server
  * Components ohnehin nicht erlaubt ist).
  */
 const COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
@@ -52,7 +52,7 @@ export interface SessionUser {
   twitchProfileImageUrl: string | null;
   roles: SessionRole[];
   permissions: string[];
-  /** Hoechste Rollen-Prioritaet des Nutzers. Verhindert Eskalation nach oben. */
+  /** Höchste Rollen-Priorität des Nutzers. Verhindert Eskalation nach oben. */
   maxPriority: number;
 }
 
@@ -130,7 +130,7 @@ export async function markSessionTwoFactorVerified(sessionId: string): Promise<v
     .where(eq(adminSessions.id, sessionId));
 }
 
-/** Beendet die aktuelle Session und loescht das Cookie. */
+/** Beendet die aktuelle Session und löscht das Cookie. */
 export async function destroyCurrentSession(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -163,7 +163,7 @@ export async function pruneExpiredSessions(): Promise<void> {
   await db.delete(adminSessions).where(lt(adminSessions.expiresAt, new Date()));
 }
 
-/** Laedt Rollen und aggregierte Rechte eines Accounts. */
+/** Lädt Rollen und aggregierte Rechte eines Accounts. */
 export async function loadUserAuthorization(userUuid: string): Promise<{
   roles: SessionRole[];
   permissions: string[];
@@ -245,7 +245,7 @@ export const getSession = cache(async (): Promise<ActiveSession | null> => {
 
   const authorization = await loadUserAuthorization(row.userUuid);
 
-  // Gleitende Verlaengerung, wenn die Session bald ablaeuft.
+  // Gleitende Verlängerung, wenn die Session bald abläuft.
   const remainingSeconds = (row.expiresAt.getTime() - now.getTime()) / 1000;
   let expiresAt = row.expiresAt;
 

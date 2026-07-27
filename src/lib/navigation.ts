@@ -3,10 +3,10 @@ import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 export interface NavItem {
   href: string;
   label: string;
-  /** Lucide-Icon-Name, wird clientseitig aufgeloest. */
+  /** Lucide-Icon-Name, wird clientseitig aufgelöst. */
   icon: string;
   permission: Permission;
-  /** Exakter Pfadvergleich statt Praefix (fuer /dashboard). */
+  /** Exakter Pfadvergleich statt Präfix (für /dashboard). */
   exact?: boolean;
 }
 

@@ -307,7 +307,7 @@ export default async function ViewerProfilePage({
                   }))}
                   height={160}
                   accent="info"
-                  // Bei 24 Balken wuerde jede Beschriftung überlappen.
+                  // Bei 24 Balken würde jede Beschriftung überlappen.
                   labelEvery={3}
                 />
                 <p className="pt-2 text-xs text-[var(--color-subtle)]">Stunde des Tages (Europe/Berlin)</p>
@@ -405,7 +405,7 @@ export default async function ViewerProfilePage({
                 </TableHeader>
                 <TableBody>
                   {profile.channels.length === 0 ? (
-                    <TableEmpty colSpan={3}>Keine Nachrichten aufgezeichnet.</TableEmpty>
+                    <TableEmpty colSpan={3} title="Keine Nachrichten aufgezeichnet" />
                   ) : (
                     profile.channels.map((entry) => (
                       <TableRow key={entry.channelName}>
@@ -454,7 +454,7 @@ export default async function ViewerProfilePage({
               <Input type="date" name="to" defaultValue={filterTo ?? ""} />
             </FilterField>
 
-            <FilterField label="Nur mit Bits" className="w-full space-y-1.5 sm:w-32">
+            <FilterField label="Filter" className="w-full space-y-1.5 sm:w-40">
               <label className="flex h-9 items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -463,7 +463,7 @@ export default async function ViewerProfilePage({
                   defaultChecked={filterBits}
                   className="size-4 accent-[var(--color-brand)]"
                 />
-                Cheers
+                Nur mit Bits (Cheers)
               </label>
             </FilterField>
           </FilterBar>
@@ -488,11 +488,14 @@ export default async function ViewerProfilePage({
               </TableHeader>
               <TableBody>
                 {messagesPage.items.length === 0 ? (
-                  <TableEmpty colSpan={3}>
-                    {hasMessageFilters
-                      ? "Keine Nachrichten für die gewählten Filter."
-                      : "Keine Nachrichten vorhanden."}
-                  </TableEmpty>
+                  <TableEmpty
+                    colSpan={3}
+                    title={
+                      hasMessageFilters
+                        ? "Keine Nachrichten für die gewählten Filter"
+                        : "Keine Nachrichten vorhanden"
+                    }
+                  />
                 ) : (
                   messagesPage.items.map((message) => (
                     <TableRow key={message.id}>
@@ -556,7 +559,7 @@ export default async function ViewerProfilePage({
               </TableHeader>
               <TableBody>
                 {eventsPage.items.length === 0 ? (
-                  <TableEmpty colSpan={4}>Keine Events aufgezeichnet.</TableEmpty>
+                  <TableEmpty colSpan={4} title="Keine Events aufgezeichnet" />
                 ) : (
                   eventsPage.items.map((event) => (
                     <TableRow key={event.id}>
@@ -630,7 +633,11 @@ export default async function ViewerProfilePage({
                 </TableHeader>
                 <TableBody>
                   {moderationPage.items.length === 0 ? (
-                    <TableEmpty colSpan={5}>Keine Moderationsaktionen — sauberer Verlauf.</TableEmpty>
+                    <TableEmpty
+                      colSpan={5}
+                      title="Keine Moderationsaktionen"
+                      description="Sauberer Verlauf — nichts aufgezeichnet."
+                    />
                   ) : (
                     moderationPage.items.map((entry) => (
                       <TableRow key={entry.id}>

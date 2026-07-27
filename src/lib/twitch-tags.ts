@@ -193,6 +193,50 @@ export function badgeLabel(name: string): string {
   return BADGE_LABELS[name.toLowerCase()] ?? name;
 }
 
+/**
+ * Auswählbare Werte des Rollen-/Abzeichenfilters der Nachrichtenliste.
+ *
+ * `flag` greift auf die eigenen Boolean-Spalten zu und ist damit günstig.
+ * `badge` durchsucht den rohen `badges`-Tag – dort stehen alle Abzeichen,
+ * für die es keine eigene Spalte gibt.
+ */
+export const MESSAGE_ROLE_FILTERS = [
+  { value: "all", label: "Alle", kind: "all" },
+  { value: "broadcaster", label: "Broadcaster", kind: "flag" },
+  { value: "mod", label: "Moderatoren", kind: "flag" },
+  { value: "vip", label: "VIPs", kind: "flag" },
+  { value: "subscriber", label: "Subscriber", kind: "flag" },
+  { value: "first", label: "Erste Nachricht", kind: "flag" },
+  { value: "badge:founder", label: "Gründer", kind: "badge" },
+  { value: "badge:premium", label: "Prime", kind: "badge" },
+  { value: "badge:turbo", label: "Turbo", kind: "badge" },
+  { value: "badge:artist", label: "Kanalkünstler", kind: "badge" },
+  { value: "badge:partner", label: "Partner", kind: "badge" },
+  { value: "badge:staff", label: "Twitch-Team", kind: "badge" },
+  { value: "badge:sub-gifter", label: "Abo-Schenker", kind: "badge" },
+  { value: "badge:bits-leader", label: "Bits-Spitzenreiter", kind: "badge" },
+  { value: "badge:hype-train", label: "Hype-Train", kind: "badge" },
+  { value: "badge:moments", label: "Moment", kind: "badge" },
+] as const;
+
+export type MessageRoleFilter = (typeof MESSAGE_ROLE_FILTERS)[number]["value"];
+
+/** Gruppierung für das Auswahlfeld: Rollen zuerst, dann die übrigen Abzeichen. */
+export const MESSAGE_ROLE_GROUPS = [
+  { label: "Rolle", options: MESSAGE_ROLE_FILTERS.filter((entry) => entry.kind === "flag") },
+  { label: "Abzeichen", options: MESSAGE_ROLE_FILTERS.filter((entry) => entry.kind === "badge") },
+] as const;
+
+export function normalizeRoleFilter(value: unknown): MessageRoleFilter {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return MESSAGE_ROLE_FILTERS.find((entry) => entry.value === raw)?.value ?? "all";
+}
+
+/** Name des Abzeichens, wenn der Filter ein Abzeichen meint – sonst null. */
+export function roleFilterBadge(value: string): string | null {
+  return value.startsWith("badge:") ? value.slice("badge:".length) : null;
+}
+
 export interface ParsedBadge {
   name: string;
   label: string;

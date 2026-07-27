@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { Layers, ShieldCheck, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleDialog } from "./role-dialog";
 import { RoleCardActions } from "./role-card-actions";
 import { requirePermission } from "@/lib/auth/guard";
-import { PERMISSIONS, WILDCARD_PERMISSION, hasPermission, permissionLabel } from "@/lib/auth/permissions";
+import { PERMISSIONS, PERMISSION_GROUPS, WILDCARD_PERMISSION, hasPermission } from "@/lib/auth/permissions";
 import { listRoles } from "@/lib/queries/accounts";
 import { formatNumber } from "@/lib/utils";
 
@@ -20,6 +22,9 @@ export default async function RolesPage() {
   const isSuperadmin = session.user.permissions.includes(WILDCARD_PERMISSION);
   const maxAssignablePriority = isSuperadmin ? 99 : session.user.maxPriority - 1;
 
+  const systemCount = roles.filter((role) => role.isSystem).length;
+  const accountsTotal = roles.reduce((sum, role) => sum + role.userCount, 0);
+
   return (
     <>
       <PageHeader
@@ -31,6 +36,18 @@ export default async function RolesPage() {
           ) : undefined
         }
       />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard label="Rollen" value={roles.length} hint={`${systemCount} davon System`} icon={Layers} accent="brand" />
+        <StatCard label="Accounts zugewiesen" value={accountsTotal} icon={Users} accent="success" />
+        <StatCard
+          label="Höchste Priorität"
+          value={roles[0]?.priority ?? 0}
+          hint={roles[0]?.name}
+          icon={ShieldCheck}
+          accent="warning"
+        />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {roles.map((role) => {
@@ -53,6 +70,12 @@ export default async function RolesPage() {
                     <span className="font-mono">{role.key}</span> · Priorität {role.priority} ·{" "}
                     {formatNumber(role.userCount)} Account(s)
                   </p>
+                  <div className="h-1 w-28 overflow-hidden rounded-full bg-[var(--color-muted)]">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.min(role.priority, 100)}%`, backgroundColor: role.color }}
+                    />
+                  </div>
                   {role.description && (
                     <p className="text-sm text-[var(--color-muted-foreground)]">{role.description}</p>
                   )}
@@ -80,17 +103,29 @@ export default async function RolesPage() {
               <CardContent>
                 {isWildcard ? (
                   <Badge variant="destructive">Vollzugriff auf alle Funktionen</Badge>
+                ) : role.permissions.length === 0 ? (
+                  <span className="text-sm text-[var(--color-muted-foreground)]">Keine Berechtigungen</span>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {role.permissions.length === 0 ? (
-                      <span className="text-sm text-[var(--color-muted-foreground)]">Keine Berechtigungen</span>
-                    ) : (
-                      role.permissions.map((permission) => (
-                        <Badge key={permission} variant="outline">
-                          {permissionLabel(permission)}
-                        </Badge>
-                      ))
-                    )}
+                  <div className="space-y-3">
+                    {PERMISSION_GROUPS.map((group) => {
+                      const granted = group.permissions.filter((permission) =>
+                        role.permissions.includes(permission.value),
+                      );
+                      if (granted.length === 0) return null;
+
+                      return (
+                        <div key={group.key}>
+                          <p className="text-xs font-medium text-[var(--color-subtle)]">{group.label}</p>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {granted.map((permission) => (
+                              <Badge key={permission.value} variant="outline" title={permission.description}>
+                                {permission.label}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

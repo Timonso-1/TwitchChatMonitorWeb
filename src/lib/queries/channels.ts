@@ -1,7 +1,9 @@
 import "server-only";
-import { and, count, desc, eq, gte, like, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { channels, events, messages, moderationActions } from "@/lib/db/schema";
+import { inRange } from "@/lib/queries/range-filter";
+import type { ResolvedRange } from "@/lib/range";
 
 export interface ChannelListItem {
   uuid: string;
@@ -49,9 +51,6 @@ export async function listChannels(filters: ChannelListFilters): Promise<{
       createdAt: channels.createdAt,
       updatedAt: channels.updatedAt,
       createdByName: channels.createdByName,
-      messageCount: sql<number>`(SELECT COUNT(*) FROM ${messages} WHERE ${messages.channelUuid} = ${channels.uuid})`.mapWith(
-        Number,
-      ),
     })
     .from(channels)
     .where(where)
@@ -59,7 +58,29 @@ export async function listChannels(filters: ChannelListFilters): Promise<{
     .limit(filters.pageSize)
     .offset((filters.page - 1) * filters.pageSize);
 
-  return { items, total: totalRow?.value ?? 0 };
+  // Nur für die aktuelle Seite zählen – kein korreliertes COUNT(*) je Zeile.
+  const uuids = items.map((item) => item.uuid);
+  const countRows =
+    uuids.length > 0
+      ? await db
+          .select({
+            channelUuid: messages.channelUuid,
+            messageCount: count(),
+          })
+          .from(messages)
+          .where(inArray(messages.channelUuid, uuids))
+          .groupBy(messages.channelUuid)
+      : [];
+
+  const countByUuid = new Map(countRows.map((row) => [row.channelUuid, row.messageCount]));
+
+  return {
+    items: items.map((item) => ({
+      ...item,
+      messageCount: countByUuid.get(item.uuid) ?? 0,
+    })),
+    total: totalRow?.value ?? 0,
+  };
 }
 
 export interface ChannelDetail {
@@ -81,20 +102,18 @@ export async function getChannelDetail(uuid: string): Promise<ChannelDetail | nu
   const [channel] = await db.select().from(channels).where(eq(channels.uuid, uuid)).limit(1);
   if (!channel) return null;
 
-  const [messageStats, eventStats, moderationStats, chatterStats, lastMessage] = await Promise.all([
-    db.select({ value: count() }).from(messages).where(eq(messages.channelUuid, uuid)),
-    db.select({ value: count() }).from(events).where(eq(events.channelUuid, uuid)),
-    db.select({ value: count() }).from(moderationActions).where(eq(moderationActions.channelUuid, uuid)),
+  // Eine Message-Aggregation statt drei getrennter Scans.
+  const [messageStats, eventStats, moderationStats] = await Promise.all([
     db
-      .select({ value: sql<number>`COUNT(DISTINCT ${messages.userId})`.mapWith(Number) })
+      .select({
+        messageCount: count(),
+        uniqueChatters: sql<number>`COUNT(DISTINCT ${messages.userId})`.mapWith(Number),
+        lastMessageAt: sql<Date | null>`MAX(${messages.receivedAt})`,
+      })
       .from(messages)
       .where(eq(messages.channelUuid, uuid)),
-    db
-      .select({ receivedAt: messages.receivedAt })
-      .from(messages)
-      .where(eq(messages.channelUuid, uuid))
-      .orderBy(desc(messages.receivedAt))
-      .limit(1),
+    db.select({ value: count() }).from(events).where(eq(events.channelUuid, uuid)),
+    db.select({ value: count() }).from(moderationActions).where(eq(moderationActions.channelUuid, uuid)),
   ]);
 
   return {
@@ -105,11 +124,11 @@ export async function getChannelDetail(uuid: string): Promise<ChannelDetail | nu
     createdAt: channel.createdAt,
     updatedAt: channel.updatedAt,
     createdByName: channel.createdByName,
-    messageCount: messageStats[0]?.value ?? 0,
+    messageCount: messageStats[0]?.messageCount ?? 0,
     eventCount: eventStats[0]?.value ?? 0,
     moderationCount: moderationStats[0]?.value ?? 0,
-    uniqueChatters: chatterStats[0]?.value ?? 0,
-    lastMessageAt: lastMessage[0]?.receivedAt ?? null,
+    uniqueChatters: messageStats[0]?.uniqueChatters ?? 0,
+    lastMessageAt: messageStats[0]?.lastMessageAt ?? null,
   };
 }
 
@@ -120,12 +139,9 @@ export interface ChannelActivityPoint {
   moderation: number;
 }
 
-/** Taeglicher Verlauf eines Channels, Luecken aufgefuellt. */
-export async function getChannelActivity(uuid: string, days = 30): Promise<ChannelActivityPoint[]> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  since.setHours(0, 0, 0, 0);
-
-  const format = "%Y-%m-%d";
+/** Verlauf eines Channels, Lücken aufgefüllt. */
+export async function getChannelActivity(uuid: string, range: ResolvedRange): Promise<ChannelActivityPoint[]> {
+  const format = range.hourly ? "%Y-%m-%d %H" : "%Y-%m-%d";
 
   const [messageRows, eventRows, moderationRows] = await Promise.all([
     db
@@ -134,7 +150,7 @@ export async function getChannelActivity(uuid: string, days = 30): Promise<Chann
         total: sql<number>`COUNT(*)`.mapWith(Number),
       })
       .from(messages)
-      .where(and(eq(messages.channelUuid, uuid), gte(messages.receivedAt, since)))
+      .where(and(eq(messages.channelUuid, uuid), inRange(messages.receivedAt, range)))
       .groupBy(sql`DATE_FORMAT(${messages.receivedAt}, ${format})`),
 
     db
@@ -143,7 +159,7 @@ export async function getChannelActivity(uuid: string, days = 30): Promise<Chann
         total: sql<number>`COUNT(*)`.mapWith(Number),
       })
       .from(events)
-      .where(and(eq(events.channelUuid, uuid), gte(events.occurredAt, since)))
+      .where(and(eq(events.channelUuid, uuid), inRange(events.occurredAt, range)))
       .groupBy(sql`DATE_FORMAT(${events.occurredAt}, ${format})`),
 
     db
@@ -152,7 +168,7 @@ export async function getChannelActivity(uuid: string, days = 30): Promise<Chann
         total: sql<number>`COUNT(*)`.mapWith(Number),
       })
       .from(moderationActions)
-      .where(and(eq(moderationActions.channelUuid, uuid), gte(moderationActions.occurredAt, since)))
+      .where(and(eq(moderationActions.channelUuid, uuid), inRange(moderationActions.occurredAt, range)))
       .groupBy(sql`DATE_FORMAT(${moderationActions.occurredAt}, ${format})`),
   ]);
 
@@ -161,10 +177,15 @@ export async function getChannelActivity(uuid: string, days = 30): Promise<Chann
   const moderationMap = new Map(moderationRows.map((row) => [row.day, row.total]));
 
   const points: ChannelActivityPoint[] = [];
+  const step = range.hourly ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
 
-  for (let time = since.getTime(); time <= Date.now(); time += 24 * 60 * 60 * 1000) {
+  const start = new Date(range.start);
+  if (range.hourly) start.setMinutes(0, 0, 0);
+
+  for (let time = start.getTime(); time <= range.end.getTime(); time += step) {
     const date = new Date(time);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const key = range.hourly ? `${day} ${String(date.getHours()).padStart(2, "0")}` : day;
 
     points.push({
       bucket: date.toISOString(),
@@ -184,9 +205,11 @@ export interface ChannelTopChatter {
   messages: number;
 }
 
-export async function getChannelTopChatters(uuid: string, days = 30, limit = 8): Promise<ChannelTopChatter[]> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
+export async function getChannelTopChatters(
+  uuid: string,
+  range: ResolvedRange,
+  limit = 8,
+): Promise<ChannelTopChatter[]> {
   return db
     .select({
       userId: messages.userId,
@@ -195,7 +218,7 @@ export async function getChannelTopChatters(uuid: string, days = 30, limit = 8):
       messages: sql<number>`COUNT(*)`.mapWith(Number),
     })
     .from(messages)
-    .where(and(eq(messages.channelUuid, uuid), gte(messages.receivedAt, since)))
+    .where(and(eq(messages.channelUuid, uuid), inRange(messages.receivedAt, range)))
     .groupBy(messages.userId, messages.userName)
     .orderBy(desc(sql`COUNT(*)`))
     .limit(limit);
@@ -207,13 +230,11 @@ export interface ChannelBreakdown {
 }
 
 /** Verteilung der Event-Typen in einem Channel. */
-export async function getChannelEventBreakdown(uuid: string, days = 30): Promise<ChannelBreakdown[]> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
+export async function getChannelEventBreakdown(uuid: string, range: ResolvedRange): Promise<ChannelBreakdown[]> {
   const rows = await db
     .select({ name: events.eventType, value: sql<number>`COUNT(*)`.mapWith(Number) })
     .from(events)
-    .where(and(eq(events.channelUuid, uuid), gte(events.occurredAt, since)))
+    .where(and(eq(events.channelUuid, uuid), inRange(events.occurredAt, range)))
     .groupBy(events.eventType)
     .orderBy(desc(sql`COUNT(*)`))
     .limit(8);
@@ -222,13 +243,11 @@ export async function getChannelEventBreakdown(uuid: string, days = 30): Promise
 }
 
 /** Verteilung der Moderationsarten in einem Channel. */
-export async function getChannelModerationBreakdown(uuid: string, days = 30): Promise<ChannelBreakdown[]> {
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
+export async function getChannelModerationBreakdown(uuid: string, range: ResolvedRange): Promise<ChannelBreakdown[]> {
   const rows = await db
     .select({ name: moderationActions.action, value: sql<number>`COUNT(*)`.mapWith(Number) })
     .from(moderationActions)
-    .where(and(eq(moderationActions.channelUuid, uuid), gte(moderationActions.occurredAt, since)))
+    .where(and(eq(moderationActions.channelUuid, uuid), inRange(moderationActions.occurredAt, range)))
     .groupBy(moderationActions.action)
     .orderBy(desc(sql`COUNT(*)`))
     .limit(8);
@@ -256,7 +275,7 @@ export interface ChannelOption {
   name: string;
 }
 
-/** Kompakte Channel-Liste fuer Filter-Dropdowns. */
+/** Kompakte Channel-Liste für Filter-Dropdowns. */
 export async function listChannelOptions(): Promise<ChannelOption[]> {
   return db
     .select({ uuid: channels.uuid, name: channels.name })

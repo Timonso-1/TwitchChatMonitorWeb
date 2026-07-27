@@ -59,6 +59,7 @@ export const events = mysqlTable(
   (table) => [
     primaryKey({ columns: [table.id] }),
     index("idx_events_channel_occurred").on(table.channelUuid, table.occurredAt),
+    index("idx_events_occurred").on(table.occurredAt),
     index("idx_events_type").on(table.eventType),
     index("idx_events_user").on(table.userId),
   ],
@@ -94,6 +95,7 @@ export const messages = mysqlTable(
   (table) => [
     primaryKey({ columns: [table.id] }),
     index("idx_messages_channel_received").on(table.channelUuid, table.receivedAt),
+    index("idx_messages_received").on(table.receivedAt),
     index("idx_messages_user").on(table.userId),
     index("idx_messages_message_id").on(table.messageId),
   ],
@@ -118,6 +120,7 @@ export const moderationActions = mysqlTable(
   (table) => [
     primaryKey({ columns: [table.id] }),
     index("idx_modactions_channel_occurred").on(table.channelUuid, table.occurredAt),
+    index("idx_modactions_occurred").on(table.occurredAt),
     index("idx_modactions_action").on(table.action),
     index("idx_modactions_target").on(table.targetUserId),
   ],

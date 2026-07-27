@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { KeyRound, ShieldAlert, ShieldOff, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { RoleChip } from "@/components/role-chip";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -12,7 +14,7 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { AccountCreateDialog } from "./account-create-dialog";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
-import { listAccounts, listRoles } from "@/lib/queries/accounts";
+import { getAccountStats, listAccounts, listRoles } from "@/lib/queries/accounts";
 import { formatDateTime, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Accounts" };
@@ -46,9 +48,10 @@ export default async function AccountsPage({
   const roleUuid = parseSearchParam(params.role);
   const page = parsePositiveInt(params.page, 1);
 
-  const [roles, { items, total }] = await Promise.all([
+  const [roles, { items, total }, stats] = await Promise.all([
     listRoles(),
     listAccounts({ search, status, roleUuid, page, pageSize: PAGE_SIZE }),
+    getAccountStats(),
   ]);
 
   const canCreate = hasPermission(session.user.permissions, PERMISSIONS.ACCOUNTS_CREATE);
@@ -66,6 +69,45 @@ export default async function AccountsPage({
         description="Panel-Accounts, deren Rollen und Sicherheitsstatus."
         actions={canCreate ? <AccountCreateDialog roles={assignableRoles} /> : undefined}
       />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Link href="/accounts">
+          <StatCard
+            label="Accounts"
+            value={stats.total}
+            icon={Users}
+            accent="brand"
+            className="transition-colors hover:border-[var(--color-border-strong)]"
+          />
+        </Link>
+        <Link href="/accounts?status=no2fa">
+          <StatCard
+            label="Ohne 2FA"
+            value={stats.no2fa}
+            icon={ShieldOff}
+            accent={stats.no2fa > 0 ? "warning" : "neutral"}
+            className="transition-colors hover:border-[var(--color-border-strong)]"
+          />
+        </Link>
+        <Link href="/accounts?status=locked">
+          <StatCard
+            label="Gesperrt"
+            value={stats.locked}
+            icon={ShieldAlert}
+            accent={stats.locked > 0 ? "destructive" : "neutral"}
+            className="transition-colors hover:border-[var(--color-border-strong)]"
+          />
+        </Link>
+        <Link href="/accounts?status=inactive">
+          <StatCard
+            label="Deaktiviert"
+            value={stats.total - stats.active}
+            icon={KeyRound}
+            accent="neutral"
+            className="transition-colors hover:border-[var(--color-border-strong)]"
+          />
+        </Link>
+      </div>
 
       <FilterBar action="/accounts" hasActiveFilters={Boolean(search) || status !== "all" || Boolean(roleUuid)}>
         <FilterField label="Suche">
@@ -94,8 +136,7 @@ export default async function AccountsPage({
         </FilterField>
       </FilterBar>
 
-      <Card>
-        <CardContent className="p-0">
+      <PanelSurface variant="flush">
           <Table>
             <TableHeader>
               <TableRow>
@@ -109,7 +150,7 @@ export default async function AccountsPage({
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={6}>Keine Accounts gefunden.</TableEmpty>
+                <TableEmpty colSpan={6} title="Keine Accounts gefunden" />
               ) : (
                 items.map((account) => {
                   const isLocked = account.lockedUntil !== null && account.lockedUntil > now;
@@ -164,8 +205,7 @@ export default async function AccountsPage({
             pageSize={PAGE_SIZE}
             total={total}
           />
-        </CardContent>
-      </Card>
+      </PanelSurface>
     </>
   );
 }

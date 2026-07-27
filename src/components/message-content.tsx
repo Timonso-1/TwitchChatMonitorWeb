@@ -1,5 +1,6 @@
 import { CornerDownRight, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ClampedContent } from "@/components/clamped-content";
 import { HighlightedMessage } from "@/components/highlighted-message";
 import { emoteImageUrl, parseEmotes, subscriberMonths } from "@/lib/twitch-tags";
 import { cn, formatNumber, truncate } from "@/lib/utils";
@@ -55,28 +56,30 @@ export function MessageContent({
       )}
 
       <div className={cn(isDeleted && "opacity-60")}>
-        <HighlightedMessage
-          content={content}
-          matches={matches}
-          isAction={isAction}
-          className={isDeleted ? "line-through decoration-[var(--color-destructive)]" : undefined}
-        />
+        <ClampedContent>
+          <HighlightedMessage
+            content={content}
+            matches={matches}
+            isAction={isAction}
+            className={isDeleted ? "line-through decoration-[var(--color-destructive)]" : undefined}
+          />
 
-        <span className="ml-1.5 inline-flex flex-wrap items-center gap-1 align-middle">
-          {isDeleted && (
-            <Badge variant="destructive" title="Diese Nachricht wurde von der Moderation entfernt">
-              <Trash2 className="size-3" />
-              Gelöscht
-            </Badge>
-          )}
-          {bits > 0 && <Badge variant="success">{formatNumber(bits)} Bits</Badge>}
-          {isFirstMessage && <Badge variant="warning">Erste Nachricht</Badge>}
-          {months !== null && months > 0 && (
-            <Badge variant="secondary" title="Abo-Dauer laut Twitch-Abzeichen">
-              {formatNumber(months)} Monate Abo
-            </Badge>
-          )}
-        </span>
+          <span className="ml-1.5 inline-flex flex-wrap items-center gap-1 align-middle">
+            {isDeleted && (
+              <Badge variant="destructive" title="Diese Nachricht wurde von der Moderation entfernt">
+                <Trash2 className="size-3" />
+                Gelöscht
+              </Badge>
+            )}
+            {bits > 0 && <Badge variant="success">{formatNumber(bits)} Bits</Badge>}
+            {isFirstMessage && <Badge variant="warning">Erste Nachricht</Badge>}
+            {months !== null && months > 0 && (
+              <Badge variant="secondary" title="Abo-Dauer laut Twitch-Abzeichen">
+                {formatNumber(months)} Monate Abo
+              </Badge>
+            )}
+          </span>
+        </ClampedContent>
       </div>
 
       {/* Verwendete Emotes als Bilder */}

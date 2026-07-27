@@ -1,10 +1,10 @@
 import "server-only";
 
 /**
- * Gemeinsame CSV-Erzeugung fuer alle Exporte.
+ * Gemeinsame CSV-Erzeugung für alle Exporte.
  *
  * Wichtig ist der Schutz vor Formel-Injektion: ein Feld, das mit =, +, -
- * oder @ beginnt, wuerde von Excel als Formel ausgefuehrt. Ein
+ * oder @ beginnt, würde von Excel als Formel ausgeführt. Ein
  * vorangestelltes Apostroph verhindert das.
  */
 
@@ -26,15 +26,15 @@ export function csvEscape(value: unknown): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-/** Baut eine vollstaendige CSV-Datei inklusive BOM fuer Excel. */
+/** Baut eine vollständige CSV-Datei inklusive BOM für Excel. */
 export function buildCsv(header: string[], rows: unknown[][]): string {
   const lines = [header.map(csvEscape).join(","), ...rows.map((row) => row.map(csvEscape).join(","))];
 
-  // Das BOM sorgt dafuer, dass Excel UTF-8 erkennt.
+  // Das BOM sorgt dafür, dass Excel UTF-8 erkennt.
   return `﻿${lines.join("\r\n")}`;
 }
 
-/** Antwort-Header fuer einen CSV-Download. */
+/** Antwort-Header für einen CSV-Download. */
 export function csvHeaders(filenamePrefix: string): HeadersInit {
   const date = new Date().toISOString().slice(0, 10);
 

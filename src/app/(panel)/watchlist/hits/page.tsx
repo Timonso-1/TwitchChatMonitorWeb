@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { RangeSelector } from "@/components/range-selector";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ChatName } from "@/components/chat-name";
+import { ClampedContent } from "@/components/clamped-content";
 import { HighlightedMessage } from "@/components/highlighted-message";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { PanelSurface } from "@/components/panel-surface";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,6 +16,7 @@ import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listChannelOptions } from "@/lib/queries/channels";
 import { findWatchHits, listWatchTerms } from "@/lib/queries/watchlist";
+import { HITS_PRESETS, rangeParams, resolveRange } from "@/lib/range";
 import { TERM_SEVERITIES, severityStyle } from "@/lib/watchlist";
 import { formatDateTime, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
@@ -21,13 +24,6 @@ export const metadata: Metadata = { title: "Wortfilter-Treffer" };
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
-
-const RANGE_OPTIONS = [
-  { value: "7", label: "7 Tage" },
-  { value: "30", label: "30 Tage" },
-  { value: "90", label: "90 Tage" },
-  { value: "", label: "Gesamter Zeitraum" },
-];
 
 export default async function WatchHitsPage({
   searchParams,
@@ -41,8 +37,7 @@ export default async function WatchHitsPage({
   const termId = termParam ? Number(termParam) : undefined;
   const channelUuid = parseSearchParam(params.channel);
   const severity = parseSearchParam(params.severity);
-  const daysParam = parseSearchParam(params.days);
-  const days = daysParam ? Number(daysParam) : 30;
+  const range = resolveRange(params, { presets: HITS_PRESETS, fallbackDays: 30 });
   const page = parsePositiveInt(params.page, 1);
 
   const [allTerms, channels] = await Promise.all([listWatchTerms(), listChannelOptions()]);
@@ -54,7 +49,8 @@ export default async function WatchHitsPage({
     termId: Number.isFinite(termId) ? termId : undefined,
     channelUuid,
     severity,
-    days: Number.isFinite(days) && days > 0 ? days : undefined,
+    // days = 0 heisst "gesamter Zeitraum" – dann ohne Zeitfilter suchen.
+    range: range.days === 0 ? undefined : range,
     page,
     pageSize: PAGE_SIZE,
   });
@@ -63,7 +59,6 @@ export default async function WatchHitsPage({
     term: termParam,
     channel: channelUuid,
     severity,
-    days: daysParam,
   };
 
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
@@ -74,6 +69,14 @@ export default async function WatchHitsPage({
         title="Wortfilter-Treffer"
         description="Nachrichten, die auf einen beobachteten Begriff passen."
         backHref="/watchlist"
+        actions={
+          <RangeSelector
+            basePath="/watchlist/hits"
+            params={activeFilters}
+            presets={HITS_PRESETS}
+            range={range}
+          />
+        }
       />
 
       {activeTerms.length === 0 ? (
@@ -119,15 +122,10 @@ export default async function WatchHitsPage({
               </Select>
             </FilterField>
 
-            <FilterField label="Zeitraum" className="w-full space-y-1.5 sm:w-44">
-              <Select name="days" defaultValue={daysParam ?? "30"}>
-                {RANGE_OPTIONS.map((entry) => (
-                  <option key={entry.label} value={entry.value}>
-                    {entry.label}
-                  </option>
-                ))}
-              </Select>
-            </FilterField>
+            {/* Zeitraum liegt in der Kopfzeile – hier nur weitertragen. */}
+            {Object.entries(rangeParams(range)).map(([key, value]) => (
+              <input key={key} type="hidden" name={key} value={value} />
+            ))}
           </FilterBar>
 
           {truncated && (
@@ -137,8 +135,7 @@ export default async function WatchHitsPage({
             </Alert>
           )}
 
-          <Card>
-            <CardContent className="px-0 pb-0">
+          <PanelSurface variant="flush">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -152,7 +149,7 @@ export default async function WatchHitsPage({
 
                 <TableBody>
                   {hits.length === 0 ? (
-                    <TableEmpty colSpan={5}>Keine Treffer im gewählten Zeitraum.</TableEmpty>
+                    <TableEmpty colSpan={5} title="Keine Treffer im gewählten Zeitraum" />
                   ) : (
                     hits.map((hit) => {
                       // Mehrfache Treffer desselben Begriffs nur einmal auflisten.
@@ -177,7 +174,9 @@ export default async function WatchHitsPage({
                           </TableCell>
 
                           <TableCell className="max-w-xl">
-                            <HighlightedMessage content={hit.content} matches={hit.matches} />
+                            <ClampedContent lines={2}>
+                              <HighlightedMessage content={hit.content} matches={hit.matches} />
+                            </ClampedContent>
                           </TableCell>
 
                           <TableCell>
@@ -198,14 +197,13 @@ export default async function WatchHitsPage({
 
               <Pagination
                 basePath="/watchlist/hits"
-                params={activeFilters}
+                params={{ ...activeFilters, ...rangeParams(range) }}
                 page={page}
                 pageSize={PAGE_SIZE}
                 total={hits.length < PAGE_SIZE && page === 1 ? hits.length : page * PAGE_SIZE + 1}
                 itemLabel="Treffern"
               />
-            </CardContent>
-          </Card>
+          </PanelSurface>
         </>
       )}
     </>

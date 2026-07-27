@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { CheckCircle2, Twitch } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { logoutAction } from "@/lib/actions/auth";
 import { getSession, isTwoFactorEnforced } from "@/lib/auth/session";
 import { isTwitchLinkEnforced, isTwitchOAuthConfigured } from "@/lib/auth/twitch-oauth";
+import { AuthSplit } from "../auth-split";
 
 export const metadata: Metadata = { title: "Twitch verknüpfen" };
 export const dynamic = "force-dynamic";
@@ -30,12 +30,10 @@ export default async function LinkTwitchPage({
   const session = await getSession();
   if (!session) redirect("/login");
 
-  // Die vorherigen Pflichtschritte müssen abgeschlossen sein.
   if (session.user.totpEnabled && !session.twoFactorVerified) redirect("/login/2fa");
   if (!session.user.totpEnabled && isTwoFactorEnforced()) redirect("/setup-2fa");
   if (session.user.mustChangePassword) redirect("/change-password");
 
-  // Bereits verknüpft oder gar nicht gefordert – dann hat die Seite keinen Zweck.
   if (session.user.twitchUserId) redirect("/dashboard");
   if (!isTwitchLinkEnforced() || !isTwitchOAuthConfigured()) redirect("/dashboard");
 
@@ -43,47 +41,50 @@ export default async function LinkTwitchPage({
   const configured = isTwitchOAuthConfigured();
 
   return (
-    <AuthShell>
-      <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-md bg-[var(--color-secondary)]">
-            <Twitch className="size-4" />
+    <AuthSplit
+      title="Twitch verknüpfen"
+      description={
+        <>
+          Angemeldet als{" "}
+          <span className="font-medium text-[var(--color-foreground)]">{session.user.username}</span>. Verbinde
+          einmalig deinen Twitch-Account.
+        </>
+      }
+      panel={
+        <div className="space-y-6">
+          <span className="flex size-14 items-center justify-center rounded-xl bg-[var(--color-secondary)]">
+            <Twitch className="size-7 text-[var(--color-brand)]" />
           </span>
-          Twitch verknüpfen
-        </CardTitle>
-        <CardDescription>
-          Verbinde deinen Panel-Account einmalig mit deinem Twitch-Account. Anzeigename und Profilbild werden
-          anschließend von dort übernommen.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {error && <Alert variant="destructive">{ERROR_MESSAGES[error] ?? "Die Verknüpfung ist fehlgeschlagen."}</Alert>}
-
-        <div className="space-y-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
-          <p className="font-medium">Was dabei passiert</p>
-          <ul className="space-y-1.5 text-[var(--color-muted-foreground)]">
-            <li className="flex items-start gap-2">
+          <div className="space-y-2">
+            <p className="text-lg font-semibold tracking-tight">Was dabei passiert</p>
+            <p className="text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+              Anzeigename und Profilbild kommen von Twitch. Es werden keine Tokens gespeichert und keine
+              Berechtigungen angefragt.
+            </p>
+          </div>
+          <ul className="space-y-3 border-t border-[var(--color-border)] pt-6 text-sm text-[var(--color-muted-foreground)]">
+            <li className="flex gap-3">
               <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-[var(--color-success)]" />
-              Es werden nur deine Twitch-ID, dein Name und dein Profilbild gespeichert.
+              Nur Twitch-ID, Name und Profilbild
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex gap-3">
               <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-[var(--color-success)]" />
-              Es werden keine Zugangstokens abgelegt — das Token wird direkt nach dem Abruf entwertet.
+              Token wird nach dem Abruf entwertet
             </li>
-            <li className="flex items-start gap-2">
+            <li className="flex gap-3">
               <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-[var(--color-success)]" />
-              Das Panel kann nichts in deinem Namen tun: es werden keine Berechtigungen angefragt.
+              Später nur durch einen Admin lösbar
             </li>
           </ul>
         </div>
-
-        <p className="text-xs text-[var(--color-muted-foreground)]">
-          Angemeldet als <span className="font-medium text-[var(--color-foreground)]">{session.user.username}</span>.
-          Achte darauf, bei Twitch den richtigen Account auszuwählen — die Verknüpfung lässt sich später nur von einem
-          Administrator lösen.
-        </p>
+      }
+    >
+      <div className="space-y-5">
+        {error && (
+          <Alert variant="destructive" role="alert">
+            {ERROR_MESSAGES[error] ?? "Die Verknüpfung ist fehlgeschlagen."}
+          </Alert>
+        )}
 
         <Button asChild className="w-full" disabled={!configured}>
           <Link href="/auth/twitch/start" prefetch={false}>
@@ -97,8 +98,7 @@ export default async function LinkTwitchPage({
             Abmelden
           </Button>
         </form>
-      </CardContent>
-      </Card>
-    </AuthShell>
+      </div>
+    </AuthSplit>
   );
 }

@@ -45,7 +45,7 @@ async function guard() {
 }
 
 /**
- * Validiert die gewaehlten Rechte und ergaenzt implizite Abhaengigkeiten.
+ * Validiert die gewählten Rechte und ergänzt implizite Abhängigkeiten.
  * Der Wildcard "*" kann ausschliesslich von Superadmins vergeben werden.
  */
 function resolvePermissions(
@@ -179,7 +179,7 @@ export async function updateRoleAction(_prev: ActionState, formData: FormData): 
     return errorState("Bitte mindestens eine Berechtigung auswählen.");
   }
 
-  // Systemrollen: Schluessel und Priorität sind unveraenderlich.
+  // Systemrollen: Schlüssel und Priorität sind unveränderlich.
   const key = role.isSystem ? role.key : parsed.data.key;
   const priority = role.isSystem ? role.priority : parsed.data.priority;
 

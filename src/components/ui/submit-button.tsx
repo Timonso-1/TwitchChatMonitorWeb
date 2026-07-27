@@ -8,7 +8,7 @@ interface SubmitButtonProps extends Omit<ButtonProps, "type" | "asChild"> {
   pendingLabel?: string;
 }
 
-/** Button fuer Server-Action-Formulare, der waehrend der Uebermittlung sperrt. */
+/** Button für Server-Action-Formulare, der während der Uebermittlung sperrt. */
 export function SubmitButton({ children, pendingLabel, disabled, ...props }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { EmptyState } from "@/components/empty-state";
 import { cn, formatNumber } from "@/lib/utils";
 
 /** Farbrollen, die auf die CSS-Variablen des aktiven Themes zeigen. */
@@ -15,18 +16,18 @@ export const CHART_COLOR_VARS: Record<ChartColor, string> = {
 };
 
 export interface SeriesConfig {
-  /** Schluessel im Datensatz. */
+  /** Schlüssel im Datensatz. */
   key: string;
   label: string;
   color: ChartColor;
-  /** Einheit fuer Legende und Tooltip, z. B. "Nachrichten". */
+  /** Einheit für Legende und Tooltip, z. B. "Nachrichten". */
   unit?: string;
 }
 
 /**
- * Formatierung wird als Name uebergeben statt als Funktion.
- * Server Components duerfen keine Funktionen an Client Components reichen –
- * deshalb loest der Client den Namen selbst auf.
+ * Formatierung wird als Name übergeben statt als Funktion.
+ * Server Components dürfen keine Funktionen an Client Components reichen –
+ * deshalb löst der Client den Namen selbst auf.
  */
 export type AxisFormat =
   | "none"
@@ -101,7 +102,7 @@ interface ChartTooltipProps {
   valueFormat?: ValueFormat;
 }
 
-/** Einheitlicher Tooltip fuer alle Diagramme. */
+/** Einheitlicher Tooltip für alle Diagramme. */
 export function ChartTooltip({ active, payload, label, labelFormat, valueFormat }: ChartTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -179,11 +180,8 @@ export function AxisCaption({ children, align = "center" }: { children: React.Re
 /** Platzhalter, wenn keine Daten vorliegen. */
 export function ChartEmpty({ height, message }: { height: number; message?: string }) {
   return (
-    <div
-      className="flex items-center justify-center rounded-md border border-dashed border-[var(--color-border)] text-sm text-[var(--color-muted-foreground)]"
-      style={{ height }}
-    >
-      {message ?? "Keine Daten im gewählten Zeitraum."}
+    <div className="flex items-center justify-center" style={{ height }}>
+      <EmptyState compact title={message ?? "Keine Daten im gewählten Zeitraum."} />
     </div>
   );
 }

@@ -25,7 +25,7 @@ async function guard(permission: Parameters<typeof assertPermission>[0]) {
   }
 }
 
-/** Ermittelt die hoechste Rollen-Prioritaet eines Zielaccounts. */
+/** Ermittelt die höchste Rollen-Priorität eines Zielaccounts. */
 async function getTargetPriority(userUuid: string): Promise<number> {
   const rows = await db
     .select({ priority: adminRoles.priority })
@@ -37,8 +37,8 @@ async function getTargetPriority(userUuid: string): Promise<number> {
 }
 
 /**
- * Prueft, ob der Handelnde die angegebenen Rollen vergeben darf.
- * Eine Rolle mit einer Prioritaet >= der eigenen darf nicht vergeben werden.
+ * Prüft, ob der Handelnde die angegebenen Rollen vergeben darf.
+ * Eine Rolle mit einer Priorität >= der eigenen darf nicht vergeben werden.
  */
 async function validateAssignableRoles(
   session: ActiveSession,
@@ -441,8 +441,8 @@ export async function revokeAccountSessionsAction(_prev: ActionState, formData: 
 }
 
 /**
- * Loest die Twitch-Verknuepfung eines Accounts.
- * Bewusst nur fuer Administratoren – sonst koennte sich jemand
+ * Löst die Twitch-Verknüpfung eines Accounts.
+ * Bewusst nur für Administratoren – sonst könnte sich jemand
  * unbemerkt hinter einem anderen Twitch-Namen verstecken.
  */
 export async function unlinkTwitchAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

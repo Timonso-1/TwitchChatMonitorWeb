@@ -31,11 +31,11 @@ import { formatNumber } from "@/lib/utils";
  */
 interface AreaChartProps<T extends object> {
   data: T[];
-  /** Feld fuer die X-Achse. */
+  /** Feld für die X-Achse. */
   xKey: string;
   series: SeriesConfig[];
   height?: number;
-  /** Benanntes Format – Funktionen sind hier nicht moeglich (Server → Client). */
+  /** Benanntes Format – Funktionen sind hier nicht möglich (Server → Client). */
   xFormat?: AxisFormat;
   labelFormat?: AxisFormat;
   valueFormat?: ValueFormat;
@@ -47,7 +47,7 @@ interface AreaChartProps<T extends object> {
   yLabel?: string;
 }
 
-/** Flaechendiagramm mit weichem Farbverlauf – fuer Zeitreihen. */
+/** Flächendiagramm mit weichem Farbverlauf – für Zeitreihen. */
 export function AreaChart<T extends object>({
   data,
   xKey,

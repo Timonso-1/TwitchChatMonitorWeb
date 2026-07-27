@@ -1,71 +1,25 @@
 import "server-only";
-import { and, count, gte, lt, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
+import { and, count, gte, lt, lte, sql } from "drizzle-orm";
+import type { MySqlColumn, MySqlTable } from "drizzle-orm/mysql-core";
 import { db } from "@/lib/db";
 import { events, messages, moderationActions, viewers } from "@/lib/db/schema";
+import type { ResolvedRange } from "@/lib/range";
 
-/** Auswaehlbare Zeitraeume der Listen- und Verlaufsansichten. */
-export const TREND_RANGES = [
-  { value: 7, label: "7 Tage" },
-  { value: 30, label: "30 Tage" },
-  { value: 90, label: "90 Tage" },
-  { value: 365, label: "12 Monate" },
-] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
-export type TrendRange = (typeof TREND_RANGES)[number]["value"];
-
-export function normalizeTrendRange(value: unknown): TrendRange {
-  const parsed = Number(Array.isArray(value) ? value[0] : value);
-  const match = TREND_RANGES.find((option) => option.value === parsed);
-  return match?.value ?? 30;
-}
-
-export function rangeLabel(days: number): string {
-  return TREND_RANGES.find((option) => option.value === days)?.label ?? `${days} Tage`;
-}
-
-function startOfDayAgo(days: number): Date {
-  const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function toDayKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export interface DailyPoint {
-  /** ISO-Zeitpunkt des Tagesbeginns. */
+export interface TrendPoint {
+  /** ISO-Zeitpunkt des Intervallbeginns. */
   bucket: string;
-  /** Neuzugaenge an diesem Tag. */
+  /** Neuzugänge in diesem Intervall. */
   value: number;
-  /** Kumulierter Bestand bis einschliesslich dieses Tages. */
+  /** Kumulierter Bestand bis einschliesslich dieses Intervalls. */
   total: number;
 }
 
-/**
- * Fuellt Tageslueckendaten auf und rechnet den kumulierten Bestand hoch.
- * `baseline` ist der Bestand vor Beginn des Zeitraums.
- */
-function buildDailySeries(rows: Array<{ day: string; total: number }>, days: number, baseline: number): DailyPoint[] {
-  const map = new Map(rows.map((row) => [row.day, row.total]));
-  const points: DailyPoint[] = [];
-
-  let running = baseline;
-  const start = startOfDayAgo(days);
-
-  for (let time = start.getTime(); time <= Date.now(); time += 24 * 60 * 60 * 1000) {
-    const date = new Date(time);
-    const value = map.get(toDayKey(date)) ?? 0;
-    running += value;
-
-    points.push({ bucket: date.toISOString(), value, total: running });
-  }
-
-  return points;
-}
+/** Alter Name, weiterhin verwendet von Diagramm-Komponenten. */
+export type DailyPoint = TrendPoint;
 
 export interface TrendSummary {
   /** Summe im aktuellen Zeitraum. */
@@ -76,183 +30,152 @@ export interface TrendSummary {
   total: number;
   /**
    * false, wenn die Vergleichsperiode ganz oder teilweise vor dem ersten
-   * Datensatz liegt. Ein Prozentwert waere dann irrefuehrend, weil er
+   * Datensatz liegt. Ein Prozentwert wäre dann irreführend, weil er
    * fehlende Aufzeichnung mit echtem Wachstum verwechselt.
    */
   comparable: boolean;
-  /** Aeltester bekannter Datensatz – erklaert, warum kein Vergleich moeglich ist. */
+  /** Ältester bekannter Datensatz – erklärt, warum kein Vergleich möglich ist. */
   earliestRecord: Date | null;
-  points: DailyPoint[];
+  points: TrendPoint[];
+}
+
+function bucketKey(date: Date, hourly: boolean): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  if (!hourly) return `${year}-${month}-${day}`;
+
+  return `${year}-${month}-${day} ${String(date.getHours()).padStart(2, "0")}`;
 }
 
 /**
- * Der Vergleich ist nur sinnvoll, wenn die Vorperiode vollstaendig
- * innerhalb des aufgezeichneten Zeitraums liegt.
+ * Füllt Intervalle ohne Datensätze auf und rechnet den kumulierten Bestand
+ * hoch. `baseline` ist der Bestand vor Beginn des Zeitraums.
  */
-function isComparable(earliest: Date | null, previousStart: Date): boolean {
-  if (!earliest) return false;
-  return earliest.getTime() <= previousStart.getTime();
+function buildSeries(rows: Array<{ bucket: string; total: number }>, range: ResolvedRange, baseline: number): TrendPoint[] {
+  const map = new Map(rows.map((row) => [row.bucket, row.total]));
+  const points: TrendPoint[] = [];
+  const step = range.hourly ? HOUR_MS : DAY_MS;
+
+  const start = new Date(range.start);
+  if (range.hourly) start.setMinutes(0, 0, 0);
+
+  let running = baseline;
+  const limit = range.end.getTime();
+
+  for (let time = start.getTime(); time <= limit; time += step) {
+    const date = new Date(time);
+    const value = map.get(bucketKey(date, range.hourly)) ?? 0;
+    running += value;
+
+    points.push({ bucket: date.toISOString(), value, total: running });
+  }
+
+  return points;
 }
 
-export async function getViewerTrend(days: number): Promise<TrendSummary> {
-  const start = startOfDayAgo(days);
-  const previousStart = startOfDayAgo(days * 2);
+function cachedTableCount(cacheKey: string, run: () => Promise<number>) {
+  return unstable_cache(run, [`trend-total-${cacheKey}`], { revalidate: 60 })();
+}
 
-  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
+/**
+ * Verlauf und Kennzahlen einer Tabelle über den gewählten Zeitraum.
+ *
+ * Die vier Auswertungen (Nachrichten, Events, Moderation, Zuschauer)
+ * unterscheiden sich nur in Tabelle und Zeitstempelspalte – deshalb eine
+ * gemeinsame Implementierung statt vier gleicher Abfrageblöcke.
+ */
+async function buildTrend(
+  cacheKey: string,
+  table: MySqlTable,
+  column: MySqlColumn,
+  range: ResolvedRange,
+): Promise<TrendSummary> {
+  const { start, end, previousStart } = range;
+  const format = range.hourly ? "%Y-%m-%d %H" : "%Y-%m-%d";
+  const grouping = sql`DATE_FORMAT(${column}, ${format})`;
+  const inCurrentRange = and(gte(column, start), lte(column, end));
+
+  const [rows, previousRow, total, baselineRow, priorSample] = await Promise.all([
     db
       .select({
-        day: sql<string>`DATE_FORMAT(${viewers.firstSeenAt}, '%Y-%m-%d')`,
+        bucket: sql<string>`DATE_FORMAT(${column}, ${format})`,
         total: sql<number>`COUNT(*)`.mapWith(Number),
       })
-      .from(viewers)
-      .where(gte(viewers.firstSeenAt, start))
-      .groupBy(sql`DATE_FORMAT(${viewers.firstSeenAt}, '%Y-%m-%d')`),
-    db.select({ value: count() }).from(viewers).where(gte(viewers.firstSeenAt, start)),
+      .from(table)
+      .where(inCurrentRange)
+      .groupBy(grouping),
     db
       .select({ value: count() })
-      .from(viewers)
-      .where(and(gte(viewers.firstSeenAt, previousStart), lt(viewers.firstSeenAt, start))),
-    db.select({ value: count() }).from(viewers),
-    db.select({ value: count() }).from(viewers).where(lt(viewers.firstSeenAt, start)),
-    db.select({ value: sql<Date | null>`MIN(${viewers.firstSeenAt})` }).from(viewers),
+      .from(table)
+      .where(and(gte(column, previousStart), lt(column, start))),
+    cachedTableCount(cacheKey, async () => {
+      const [row] = await db.select({ value: count() }).from(table);
+      return row?.value ?? 0;
+    }),
+    db.select({ value: count() }).from(table).where(lt(column, start)),
+    // Schneller als MIN(): bricht nach dem ersten Treffer ab.
+    db
+      .select({ value: sql<number>`1`.mapWith(Number) })
+      .from(table)
+      .where(lte(column, previousStart))
+      .limit(1),
   ]);
 
-  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
+  const current = rows.reduce((sum, row) => sum + row.total, 0);
+  const comparable = (priorSample[0]?.value ?? 0) === 1;
+
+  let earliestRecord: Date | null = null;
+  if (!comparable) {
+    const [earliestRow] = await db.select({ value: column }).from(table).orderBy(column).limit(1);
+    earliestRecord = earliestRow?.value ? new Date(earliestRow.value as Date) : null;
+  }
 
   return {
-    current: currentRow[0]?.value ?? 0,
+    current,
     previous: previousRow[0]?.value ?? 0,
-    total: totalRow[0]?.value ?? 0,
-    comparable: isComparable(earliest, previousStart),
-    earliestRecord: earliest,
-    points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
+    total,
+    comparable,
+    earliestRecord,
+    points: buildSeries(rows, range, baselineRow[0]?.value ?? 0),
   };
 }
 
-export async function getMessageTrend(days: number): Promise<TrendSummary> {
-  const start = startOfDayAgo(days);
-  const previousStart = startOfDayAgo(days * 2);
-
-  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
-    db
-      .select({
-        day: sql<string>`DATE_FORMAT(${messages.receivedAt}, '%Y-%m-%d')`,
-        total: sql<number>`COUNT(*)`.mapWith(Number),
-      })
-      .from(messages)
-      .where(gte(messages.receivedAt, start))
-      .groupBy(sql`DATE_FORMAT(${messages.receivedAt}, '%Y-%m-%d')`),
-    db.select({ value: count() }).from(messages).where(gte(messages.receivedAt, start)),
-    db
-      .select({ value: count() })
-      .from(messages)
-      .where(and(gte(messages.receivedAt, previousStart), lt(messages.receivedAt, start))),
-    db.select({ value: count() }).from(messages),
-    db.select({ value: count() }).from(messages).where(lt(messages.receivedAt, start)),
-    db.select({ value: sql<Date | null>`MIN(${messages.receivedAt})` }).from(messages),
-  ]);
-
-  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
-
-  return {
-    current: currentRow[0]?.value ?? 0,
-    previous: previousRow[0]?.value ?? 0,
-    total: totalRow[0]?.value ?? 0,
-    comparable: isComparable(earliest, previousStart),
-    earliestRecord: earliest,
-    points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
-  };
+export function getViewerTrend(range: ResolvedRange): Promise<TrendSummary> {
+  return buildTrend("viewers", viewers, viewers.firstSeenAt, range);
 }
 
-export async function getEventTrend(days: number): Promise<TrendSummary> {
-  const start = startOfDayAgo(days);
-  const previousStart = startOfDayAgo(days * 2);
-
-  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
-    db
-      .select({
-        day: sql<string>`DATE_FORMAT(${events.occurredAt}, '%Y-%m-%d')`,
-        total: sql<number>`COUNT(*)`.mapWith(Number),
-      })
-      .from(events)
-      .where(gte(events.occurredAt, start))
-      .groupBy(sql`DATE_FORMAT(${events.occurredAt}, '%Y-%m-%d')`),
-    db.select({ value: count() }).from(events).where(gte(events.occurredAt, start)),
-    db
-      .select({ value: count() })
-      .from(events)
-      .where(and(gte(events.occurredAt, previousStart), lt(events.occurredAt, start))),
-    db.select({ value: count() }).from(events),
-    db.select({ value: count() }).from(events).where(lt(events.occurredAt, start)),
-    db.select({ value: sql<Date | null>`MIN(${events.occurredAt})` }).from(events),
-  ]);
-
-  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
-
-  return {
-    current: currentRow[0]?.value ?? 0,
-    previous: previousRow[0]?.value ?? 0,
-    total: totalRow[0]?.value ?? 0,
-    comparable: isComparable(earliest, previousStart),
-    earliestRecord: earliest,
-    points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
-  };
+export function getMessageTrend(range: ResolvedRange): Promise<TrendSummary> {
+  return buildTrend("messages", messages, messages.receivedAt, range);
 }
 
-export async function getModerationTrend(days: number): Promise<TrendSummary> {
-  const start = startOfDayAgo(days);
-  const previousStart = startOfDayAgo(days * 2);
+export function getEventTrend(range: ResolvedRange): Promise<TrendSummary> {
+  return buildTrend("events", events, events.occurredAt, range);
+}
 
-  const [rows, currentRow, previousRow, totalRow, baselineRow, earliestRow] = await Promise.all([
-    db
-      .select({
-        day: sql<string>`DATE_FORMAT(${moderationActions.occurredAt}, '%Y-%m-%d')`,
-        total: sql<number>`COUNT(*)`.mapWith(Number),
-      })
-      .from(moderationActions)
-      .where(gte(moderationActions.occurredAt, start))
-      .groupBy(sql`DATE_FORMAT(${moderationActions.occurredAt}, '%Y-%m-%d')`),
-    db.select({ value: count() }).from(moderationActions).where(gte(moderationActions.occurredAt, start)),
-    db
-      .select({ value: count() })
-      .from(moderationActions)
-      .where(and(gte(moderationActions.occurredAt, previousStart), lt(moderationActions.occurredAt, start))),
-    db.select({ value: count() }).from(moderationActions),
-    db.select({ value: count() }).from(moderationActions).where(lt(moderationActions.occurredAt, start)),
-    db.select({ value: sql<Date | null>`MIN(${moderationActions.occurredAt})` }).from(moderationActions),
-  ]);
-
-  const earliest = earliestRow[0]?.value ? new Date(earliestRow[0].value) : null;
-
-  return {
-    current: currentRow[0]?.value ?? 0,
-    previous: previousRow[0]?.value ?? 0,
-    total: totalRow[0]?.value ?? 0,
-    comparable: isComparable(earliest, previousStart),
-    earliestRecord: earliest,
-    points: buildDailySeries(rows, days, baselineRow[0]?.value ?? 0),
-  };
+export function getModerationTrend(range: ResolvedRange): Promise<TrendSummary> {
+  return buildTrend("moderation", moderationActions, moderationActions.occurredAt, range);
 }
 
 /**
  * Zuschauer, die im Zeitraum aktiv waren, aber schon vorher bekannt waren –
  * also wiederkehrend statt neu.
  */
-export async function getReturningViewers(days: number): Promise<number> {
-  const start = startOfDayAgo(days);
-
+export async function getReturningViewers(range: ResolvedRange): Promise<number> {
   const [row] = await db
     .select({ value: count() })
     .from(viewers)
-    .where(and(gte(viewers.lastSeenAt, start), lt(viewers.firstSeenAt, start)));
+    .where(and(gte(viewers.lastSeenAt, range.start), lte(viewers.lastSeenAt, range.end), lt(viewers.firstSeenAt, range.start)));
 
   return row?.value ?? 0;
 }
 
 /** Aktive Zuschauer im Zeitraum (neu oder wiederkehrend). */
-export async function getActiveViewers(days: number): Promise<number> {
-  const start = startOfDayAgo(days);
+export async function getActiveViewers(range: ResolvedRange): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(viewers)
+    .where(and(gte(viewers.lastSeenAt, range.start), lte(viewers.lastSeenAt, range.end)));
 
-  const [row] = await db.select({ value: count() }).from(viewers).where(gte(viewers.lastSeenAt, start));
   return row?.value ?? 0;
 }

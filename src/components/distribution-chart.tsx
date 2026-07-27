@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/empty-state";
 import { cn, formatNumber } from "@/lib/utils";
 
 export interface DistributionBar {
@@ -52,11 +53,8 @@ export function DistributionChart({
 
   if (total === 0) {
     return (
-      <div
-        className="flex items-center justify-center rounded-md border border-dashed border-[var(--color-border)] text-sm text-[var(--color-muted-foreground)]"
-        style={{ height: height + 28 }}
-      >
-        {emptyMessage ?? "Noch keine Aktivität aufgezeichnet."}
+      <div className="flex items-center justify-center" style={{ height: height + 28 }}>
+        <EmptyState compact title={emptyMessage ?? "Noch keine Aktivität aufgezeichnet."} />
       </div>
     );
   }
