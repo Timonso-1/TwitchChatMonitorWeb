@@ -4,7 +4,7 @@ import { Download, Sparkles, Zap } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
-import { EventCell } from "@/components/event-detail-dialog";
+import { EventDetailButton } from "@/components/event-detail-dialog";
 import { EventBadge, SubTierBadge } from "@/components/twitch-badges";
 import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
@@ -144,11 +144,14 @@ export default async function EventsPage({
                 <TableHead className="w-40">Nutzer</TableHead>
                 <TableHead>Details</TableHead>
                 <TableHead>Nachricht</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Details</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={6} title="Keine Events gefunden" />
+                <TableEmpty colSpan={7} title="Keine Events gefunden" />
               ) : (
                 items.map((event) => (
                   <TableRow key={event.id}>
@@ -181,10 +184,9 @@ export default async function EventsPage({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-md text-sm">
-                      <EventCell event={event}>
-                        <p className="truncate">{event.message ?? "—"}</p>
-                      </EventCell>
+                    <TableCell className="max-w-md truncate text-sm">{event.message ?? "—"}</TableCell>
+                    <TableCell className="py-2">
+                      <EventDetailButton event={event} />
                     </TableCell>
                   </TableRow>
                 ))

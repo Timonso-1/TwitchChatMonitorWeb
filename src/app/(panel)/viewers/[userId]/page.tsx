@@ -7,9 +7,9 @@ import { ChatBadges } from "@/components/chat-badges";
 import { ChatName } from "@/components/chat-name";
 import { DistributionChart } from "@/components/distribution-chart";
 import { FilterBar, FilterField } from "@/components/filter-bar";
-import { EventCell } from "@/components/event-detail-dialog";
+import { EventDetailButton } from "@/components/event-detail-dialog";
 import { MessageCell } from "@/components/message-cell";
-import { ModerationCell } from "@/components/moderation-detail-dialog";
+import { ModerationDetailButton } from "@/components/moderation-detail-dialog";
 import { StatCard } from "@/components/stat-card";
 import { ChatRoleBadges, EventBadge, ModerationBadge, SubTierBadge } from "@/components/twitch-badges";
 import { TwitchProfileLink } from "@/components/twitch-profile-link";
@@ -571,11 +571,14 @@ export default async function ViewerProfilePage({
                   <TableHead className="w-40">Nutzer</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead>Nachricht</TableHead>
+                  <TableHead className="w-12">
+                    <span className="sr-only">Details</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {eventsPage.items.length === 0 ? (
-                  <TableEmpty colSpan={6} title="Keine Events aufgezeichnet" />
+                  <TableEmpty colSpan={7} title="Keine Events aufgezeichnet" />
                 ) : (
                   eventsPage.items.map((event) => (
                     <TableRow key={event.id}>
@@ -608,10 +611,9 @@ export default async function ViewerProfilePage({
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-md text-sm">
-                        <EventCell event={event}>
-                          <p className="truncate">{event.message ?? "—"}</p>
-                        </EventCell>
+                      <TableCell className="max-w-md truncate text-sm">{event.message ?? "—"}</TableCell>
+                      <TableCell className="py-2">
+                        <EventDetailButton event={event} />
                       </TableCell>
                     </TableRow>
                   ))
@@ -656,12 +658,15 @@ export default async function ViewerProfilePage({
                     <TableHead className="w-24">Dauer</TableHead>
                     <TableHead>Grund</TableHead>
                     <TableHead>Gelöschte Nachricht</TableHead>
+                    <TableHead className="w-12">
+                      <span className="sr-only">Details</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {moderationPage.items.length === 0 ? (
                     <TableEmpty
-                      colSpan={7}
+                      colSpan={8}
                       title="Keine Moderationsaktionen"
                       description="Sauberer Verlauf — nichts aufgezeichnet."
                     />
@@ -687,13 +692,12 @@ export default async function ViewerProfilePage({
                         <TableCell className="whitespace-nowrap text-xs">
                           {formatDuration(entry.durationSeconds)}
                         </TableCell>
-                        <TableCell className="max-w-64 text-sm">
-                          <ModerationCell entry={entry}>
-                            <p className="truncate">{entry.reason ?? "—"}</p>
-                          </ModerationCell>
-                        </TableCell>
+                        <TableCell className="max-w-64 truncate text-sm">{entry.reason ?? "—"}</TableCell>
                         <TableCell className="max-w-md truncate text-sm text-[var(--color-muted-foreground)]">
                           {entry.deletedMessageContent ?? "—"}
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <ModerationDetailButton entry={entry} />
                         </TableCell>
                       </TableRow>
                     ))

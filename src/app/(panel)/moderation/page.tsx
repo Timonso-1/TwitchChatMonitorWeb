@@ -4,7 +4,7 @@ import { Download, Gavel, ShieldAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
-import { ModerationCell } from "@/components/moderation-detail-dialog";
+import { ModerationDetailButton } from "@/components/moderation-detail-dialog";
 import { ModerationBadge } from "@/components/twitch-badges";
 import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
@@ -145,11 +145,14 @@ export default async function ModerationPage({
                 <TableHead className="w-24">Dauer</TableHead>
                 <TableHead>Grund</TableHead>
                 <TableHead>Gelöschte Nachricht</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Details</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableEmpty colSpan={7} title="Keine Moderationsaktionen gefunden" />
+                <TableEmpty colSpan={8} title="Keine Moderationsaktionen gefunden" />
               ) : (
                 items.map((entry) => (
                   <TableRow key={entry.id}>
@@ -170,13 +173,12 @@ export default async function ModerationPage({
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-xs">{formatDuration(entry.durationSeconds)}</TableCell>
-                    <TableCell className="max-w-64 text-sm">
-                      <ModerationCell entry={entry}>
-                        <p className="truncate">{entry.reason ?? "—"}</p>
-                      </ModerationCell>
-                    </TableCell>
+                    <TableCell className="max-w-64 truncate text-sm">{entry.reason ?? "—"}</TableCell>
                     <TableCell className="max-w-md truncate text-sm text-[var(--color-muted-foreground)]">
                       {entry.deletedMessageContent ?? "—"}
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <ModerationDetailButton entry={entry} />
                     </TableCell>
                   </TableRow>
                 ))

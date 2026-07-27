@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
-import { DetailTrigger } from "@/components/detail-trigger";
+import { DetailButton } from "@/components/detail-trigger";
 import { ModerationBadge } from "@/components/twitch-badges";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ModerationListItem } from "@/lib/queries/twitch";
@@ -72,20 +72,20 @@ export function ModerationDetailDialog({
   );
 }
 
-/** Zelle, die den Moderations-Dialog öffnet. */
-export function ModerationCell({
-  entry,
-  children,
-}: {
-  entry: ModerationListItem;
-  children: React.ReactNode;
-}) {
+/**
+ * Schaltfläche am Zeilenende, die den Dialog öffnet.
+ *
+ * Bewusst eine eigene Spalte statt einer anklickbaren Textzelle: Grund und
+ * gelöschter Nachrichtentext sind bei Banns und Timeouts oft leer, und ein
+ * „—“ ist kein erkennbares Ziel.
+ */
+export function ModerationDetailButton({ entry }: { entry: ModerationListItem }) {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <DetailTrigger label="Details zur Moderationsaktion anzeigen" onOpen={() => setOpen(true)}>
-      {children}
+    <>
+      <DetailButton label="Details zur Moderationsaktion anzeigen" onOpen={() => setOpen(true)} />
       {open && <ModerationDetailDialog entry={entry} open={open} onOpenChange={setOpen} />}
-    </DetailTrigger>
+    </>
   );
 }

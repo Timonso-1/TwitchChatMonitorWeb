@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { DetailTrigger } from "@/components/detail-trigger";
+import { DetailButton } from "@/components/detail-trigger";
 import { EventBadge, SubTierBadge } from "@/components/twitch-badges";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { EventListItem } from "@/lib/queries/twitch";
@@ -89,14 +89,19 @@ export function EventDetailDialog({
   );
 }
 
-/** Zelle, die den Event-Dialog öffnet. */
-export function EventCell({ event, children }: { event: EventListItem; children: React.ReactNode }) {
+/**
+ * Schaltfläche am Zeilenende, die den Dialog öffnet.
+ *
+ * Wie bei der Moderation eine eigene Spalte: die Nachrichtenspalte ist bei
+ * Raids und den meisten Cheers leer und taugt nicht als Ziel.
+ */
+export function EventDetailButton({ event }: { event: EventListItem }) {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <DetailTrigger label="Details zum Event anzeigen" onOpen={() => setOpen(true)}>
-      {children}
+    <>
+      <DetailButton label="Details zum Event anzeigen" onOpen={() => setOpen(true)} />
       {open && <EventDetailDialog event={event} open={open} onOpenChange={setOpen} />}
-    </DetailTrigger>
+    </>
   );
 }
