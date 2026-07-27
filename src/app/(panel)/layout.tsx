@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { AppShell } from "@/components/app-shell";
 import { logoutAction } from "@/lib/actions/auth";
 import { requireSession } from "@/lib/auth/guard";
+import { getNavCounts } from "@/lib/queries/nav-counts";
 import { THEME_COOKIE_NAME, isThemePreference } from "@/lib/theme";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -11,8 +12,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const rawTheme = cookieStore.get(THEME_COOKIE_NAME)?.value;
   const theme = isThemePreference(rawTheme) ? rawTheme : "system";
 
+  // Bewusst nicht abgewartet: Die Seitenleiste löst das Promise pro Badge in
+  // einer Suspense-Grenze auf, damit kein Seitenaufruf auf dem COUNT(*) über
+  // `messages` blockiert.
+  const navCounts = getNavCounts(session.user.permissions);
+
   return (
     <AppShell
+      navCounts={navCounts}
       user={{
         uuid: session.user.uuid,
         username: session.user.username,
