@@ -1,37 +1,14 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { AlertTriangle, ArrowDown, Filter, Pause, Play, Radio, Trash2 } from "lucide-react";
-import { ChatName } from "@/components/chat-name";
-import { HighlightedMessage } from "@/components/highlighted-message";
-import { ChatRoleBadges } from "@/components/twitch-badges";
+import { ArrowDown, Filter, Pause, Play, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { emptyFeedState, mergeBatch, type LiveChatPayload } from "@/lib/live-chat-feed";
 import { cn, formatNumber } from "@/lib/utils";
-import { highestSeverity, severityStyle, type TermMatch } from "@/lib/watchlist";
-
-interface LiveMessage {
-  id: number;
-  channelUuid: string;
-  channelName: string;
-  userId: string;
-  userName: string;
-  displayName: string | null;
-  color: string | null;
-  content: string;
-  bits: number;
-  isMod: boolean;
-  isSubscriber: boolean;
-  isVip: boolean;
-  isBroadcaster: boolean;
-  isFirstMessage: boolean;
-  isAction: boolean;
-  receivedAt: string;
-  matches: TermMatch[];
-}
+import { LiveChatTable } from "./live-chat-table";
 
 interface LiveChatProps {
   channels: Array<{ uuid: string; name: string }>;
@@ -53,12 +30,14 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
   const [interval, setIntervalMs] = React.useState(5000);
   const [paused, setPaused] = React.useState(false);
   const [onlyHits, setOnlyHits] = React.useState(false);
-  const [messages, setMessages] = React.useState<LiveMessage[]>([]);
+  const [feed, setFeed] = React.useState(emptyFeedState);
   const [error, setError] = React.useState<string | null>(null);
   const [atBottom, setAtBottom] = React.useState(true);
   const [newCount, setNewCount] = React.useState(0);
 
   const latestId = React.useRef(0);
+  /** Zweiter Cursor: trägt Löschungen nach, die nach dem Eintreffen passieren. */
+  const modCursor = React.useRef(0);
   const containerRef = React.useRef<HTMLDivElement>(null);
   /** Verhindert, dass sich zwei Abrufe überlappen und dieselben Nachrichten doppelt liefern. */
   const inFlight = React.useRef(false);
@@ -69,10 +48,12 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
     atBottomRef.current = atBottom;
   }, [atBottom]);
 
-  // Bei Channelwechsel von vorn beginnen.
+  // Bei Channelwechsel von vorn beginnen. Beide Cursor zurück auf 0, damit
+  // wieder der Erstabruf-Pfad greift; die Wörterbücher bleiben als Cache.
   React.useEffect(() => {
     latestId.current = 0;
-    setMessages([]);
+    modCursor.current = 0;
+    setFeed(emptyFeedState());
     setNewCount(0);
   }, [channel]);
 
@@ -84,6 +65,7 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
       const params = new URLSearchParams();
       if (channel) params.set("channel", channel);
       params.set("after", String(latestId.current));
+      params.set("modAfter", String(modCursor.current));
 
       const response = await fetch(`/api/live-chat?${params.toString()}`, { cache: "no-store" });
 
@@ -92,24 +74,16 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
         return;
       }
 
-      const data = (await response.json()) as { messages: LiveMessage[]; latestId: number };
+      const payload = (await response.json()) as LiveChatPayload;
       setError(null);
 
-      if (data.messages.length === 0) return;
+      latestId.current = Math.max(latestId.current, payload.latestId);
+      modCursor.current = Math.max(modCursor.current, payload.modCursor);
 
-      latestId.current = Math.max(latestId.current, data.latestId);
-
-      setMessages((previous) => {
-        // Zweite Absicherung: bereits vorhandene IDs überspringen.
-        const known = new Set(previous.map((message) => message.id));
-        const fresh = data.messages.filter((message) => !known.has(message.id));
-
-        if (fresh.length === 0) return previous;
-
-        if (!atBottomRef.current) setNewCount((count) => count + fresh.length);
-
-        const merged = [...previous, ...fresh];
-        return merged.length > MAX_MESSAGES ? merged.slice(merged.length - MAX_MESSAGES) : merged;
+      setFeed((previous) => {
+        const { state, added } = mergeBatch(previous, payload, MAX_MESSAGES);
+        if (added > 0 && !atBottomRef.current) setNewCount((count) => count + added);
+        return state;
       });
     } catch {
       setError("Verbindung fehlgeschlagen.");
@@ -132,7 +106,7 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
     if (!atBottom || paused) return;
     const container = containerRef.current;
     if (container) container.scrollTop = container.scrollHeight;
-  }, [messages, atBottom, paused]);
+  }, [feed, atBottom, paused]);
 
   function onScroll(event: React.UIEvent<HTMLDivElement>) {
     const element = event.currentTarget;
@@ -150,8 +124,8 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
     setNewCount(0);
   }
 
-  const visible = onlyHits ? messages.filter((message) => message.matches.length > 0) : messages;
-  const hitCount = messages.filter((message) => message.matches.length > 0).length;
+  const visible = onlyHits ? feed.messages.filter((message) => message.matches.length > 0) : feed.messages;
+  const hitCount = feed.messages.filter((message) => message.matches.length > 0).length;
 
   return (
     <div className="space-y-3">
@@ -186,7 +160,7 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
             {paused ? "Fortsetzen" : "Pause"}
           </Button>
 
-          <Button variant="outline" size="sm" onClick={() => setMessages([])}>
+          <Button variant="outline" size="sm" onClick={() => setFeed(emptyFeedState())}>
             <Trash2 />
             Leeren
           </Button>
@@ -212,7 +186,7 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
             )}
           />
           {paused ? "Pausiert" : "Live"}
-          <span className="text-[var(--color-subtle)]">· {formatNumber(messages.length)} im Puffer</span>
+          <span className="text-[var(--color-subtle)]">· {formatNumber(feed.messages.length)} im Puffer</span>
         </span>
       </div>
 
@@ -223,95 +197,13 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
         <div
           ref={containerRef}
           onScroll={onScroll}
-          className="h-[60vh] overflow-y-auto scrollbar-thin rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3 ring-inset-subtle"
+          className="h-[60vh] overflow-y-auto scrollbar-thin rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] ring-inset-subtle"
         >
-          {visible.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-[var(--color-muted-foreground)]">
-              <Radio className="size-5 opacity-50" />
-              {onlyHits ? "Noch keine Treffer." : "Warte auf Nachrichten…"}
-            </div>
-          ) : (
-            <ol className="space-y-1">
-              {visible.map((message) => {
-                const severity = highestSeverity(message.matches);
-
-                return (
-                  <li
-                    key={message.id}
-                    className={cn(
-                      "flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded px-2 py-1 text-sm",
-                      severity === "critical" &&
-                        "bg-[color-mix(in_srgb,var(--color-destructive)_10%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--color-destructive)_30%,transparent)]",
-                      severity === "warning" &&
-                        "bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)]",
-                      severity === "info" && "bg-[color-mix(in_srgb,var(--color-info)_8%,transparent)]",
-                    )}
-                  >
-                    <span className="shrink-0 font-mono text-xs text-[var(--color-subtle)]">
-                      {new Date(message.receivedAt).toLocaleTimeString("de-DE", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
-                    </span>
-
-                    {!channel && (
-                      <span className="shrink-0 text-xs text-[var(--color-muted-foreground)]">
-                        {message.channelName}
-                      </span>
-                    )}
-
-                    <span className="flex shrink-0 items-center gap-1">
-                      <ChatRoleBadges
-                        isBroadcaster={message.isBroadcaster}
-                        isMod={message.isMod}
-                        isVip={message.isVip}
-                        isSubscriber={message.isSubscriber}
-                      />
-                      <Link href={`/viewers/${message.userId}`} className="hover:underline">
-                        <ChatName color={message.color} className="font-medium">
-                          {message.displayName ?? message.userName}
-                        </ChatName>
-                      </Link>
-                      <span className="text-[var(--color-subtle)]">:</span>
-                    </span>
-
-                    <span className="min-w-0 flex-1 break-words">
-                      <HighlightedMessage
-                        content={message.content}
-                        matches={message.matches}
-                        isAction={message.isAction}
-                      />
-                      {message.bits > 0 && (
-                        <Badge variant="success" className="ml-1.5">
-                          {formatNumber(message.bits)} Bits
-                        </Badge>
-                      )}
-                      {message.isFirstMessage && (
-                        <Badge variant="warning" className="ml-1.5">
-                          Erste Nachricht
-                        </Badge>
-                      )}
-                    </span>
-
-                    {severity && (
-                      <AlertTriangle
-                        className={cn(
-                          "size-3.5 shrink-0",
-                          severity === "critical"
-                            ? "text-[var(--color-destructive)]"
-                            : severity === "warning"
-                              ? "text-[var(--color-warning)]"
-                              : "text-[var(--color-info)]",
-                        )}
-                        aria-label={`Wortfilter: ${severityStyle(severity).label}`}
-                      />
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
+          <LiveChatTable
+            messages={visible}
+            feed={feed}
+            emptyLabel={onlyHits ? "Noch keine Treffer." : "Warte auf Nachrichten…"}
+          />
         </div>
 
         {/* Sprungknopf, wenn während des Lesens neue Nachrichten kamen */}
