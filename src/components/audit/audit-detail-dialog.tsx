@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { AuditDetail, DiffField } from "@/lib/audit-diff";
 import { permissionLabel } from "@/lib/auth/permissions";
 
@@ -43,7 +43,7 @@ export function AuditDetailDialog({
               {entry.outcome === "failure" ? "Fehler" : "OK"}
             </Badge>
           </DialogTitle>
-          <span className="font-mono text-[0.65rem] text-[var(--color-muted-foreground)]">{entry.action}</span>
+          <DialogDescription className="font-mono text-[0.65rem]">{entry.action}</DialogDescription>
         </DialogHeader>
 
         <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[8rem_1fr]">
