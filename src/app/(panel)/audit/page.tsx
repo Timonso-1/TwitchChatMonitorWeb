@@ -14,7 +14,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { auditActionLabel } from "@/lib/audit";
 import { getAuditStats, listAuditActions, listAuditEntries } from "@/lib/queries/accounts";
 import { formatDateTime, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
-import { AuditTableBody, ROW_HINT_ID } from "./audit-table-body";
+import { AuditTableBody } from "./audit-table-body";
 import type { AuditRowEntry } from "@/components/audit/audit-detail-dialog";
 import { normalizeAuditDetail } from "@/lib/audit-diff";
 
@@ -22,6 +22,7 @@ export const metadata: Metadata = { title: "Audit-Log" };
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
+const ROW_HINT_ID = "audit-row-activation-hint";
 
 export default async function AuditPage({
   searchParams,
@@ -128,7 +129,7 @@ export default async function AuditPage({
                 <TableHead className="w-28">Ergebnis</TableHead>
               </TableRow>
             </TableHeader>
-            <AuditTableBody entries={entries} />
+            <AuditTableBody entries={entries} rowHintId={ROW_HINT_ID} />
           </Table>
 
           <Pagination basePath="/audit" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
