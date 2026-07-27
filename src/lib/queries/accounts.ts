@@ -349,6 +349,7 @@ export interface AuditListItem {
   targetId: string | null;
   outcome: string;
   ipAddress: string | null;
+  userAgent: string | null;
   note: string | null;
   metadata: unknown;
   createdAt: Date;
@@ -406,6 +407,7 @@ export async function listAuditEntries(filters: AuditFilters): Promise<{
       targetId: adminAuditLog.targetId,
       outcome: adminAuditLog.outcome,
       ipAddress: adminAuditLog.ipAddress,
+      userAgent: adminAuditLog.userAgent,
       note: adminAuditLog.note,
       metadata: adminAuditLog.metadata,
       createdAt: adminAuditLog.createdAt,
