@@ -76,6 +76,12 @@ fehl, liefert sie `undefined`, und das betreffende Badge entfällt. `getNavCount
 wirft nie — ein Datenbankproblem darf nicht die gesamte Sidebar und damit das
 Panel unbrauchbar machen.
 
+**Nullwerte:** Ein Zähler mit dem Wert 0 bekommt ebenfalls kein Badge. Ein Chip
+mit „0" trägt keine Information, die der leere Eintrag nicht schon selbst
+vermittelt, und erzeugt nur optisches Rauschen. Fehlender Wert und Null sind
+damit äusserlich nicht unterscheidbar — das ist beabsichtigt und in beiden Fällen
+die richtige Aussage: hier gibt es nichts zu sehen.
+
 ### Nav-Definition: `src/lib/navigation.ts`
 
 `NavItem` erhält ein optionales Feld `countKey?: NavCountKey`. Die Union

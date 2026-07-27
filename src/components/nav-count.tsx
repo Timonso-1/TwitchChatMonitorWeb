@@ -17,8 +17,10 @@ export function NavCount({ promise, countKey, active }: NavCountProps) {
   const value = use(promise)[countKey];
 
   // Fehlt der Wert, ist die Abfrage fehlgeschlagen – dann lieber nichts zeigen
-  // als eine falsche Null.
-  if (value === undefined) return null;
+  // als eine falsche Null. Eine echte Null wird ebenfalls ausgeblendet: Ein
+  // Chip mit "0" trägt keine Information, die der leere Eintrag nicht schon
+  // selbst vermittelt.
+  if (!value) return null;
 
   return (
     <Badge
