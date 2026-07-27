@@ -6,7 +6,8 @@ import { AreaChart } from "@/components/charts";
 import { ChatName } from "@/components/chat-name";
 import { DistributionChart } from "@/components/distribution-chart";
 import { FilterBar, FilterField } from "@/components/filter-bar";
-import { MessageContent } from "@/components/message-content";
+import { ClampedContent } from "@/components/clamped-content";
+import { MessageCell } from "@/components/message-cell";
 import { StatCard } from "@/components/stat-card";
 import { ChatRoleBadges, EventBadge, ModerationBadge, SubTierBadge } from "@/components/twitch-badges";
 import { TwitchProfileLink } from "@/components/twitch-profile-link";
@@ -23,7 +24,6 @@ import { ViewerTabsNav, normalizeViewerTab, type ViewerTabKey } from "./viewer-t
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import {
-  getSubscriptionInfo,
   getViewerActivity,
   getViewerChannelOptions,
   getViewerEventsPage,
@@ -35,7 +35,7 @@ import {
 } from "@/lib/queries/viewer-profile";
 import { getMessageContext } from "@/lib/queries/twitch";
 import { getViewerEmoteSummary } from "@/lib/queries/emotes";
-import { eventDetailText, formatDuration, subTierLabel } from "@/lib/twitch";
+import { eventDetailText, formatDuration } from "@/lib/twitch";
 import { emoteImageUrl } from "@/lib/twitch-tags";
 import { getViewerAvatar } from "@/lib/twitch-api";
 import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
@@ -110,10 +110,9 @@ export default async function ViewerProfilePage({
 
   const hasMessageFilters = Boolean(filterChannel || filterContent || filterFrom || filterTo || filterBits);
 
-  const [profile, avatar, subscription] = await Promise.all([
+  const [profile, avatar] = await Promise.all([
     getViewerProfile(userId, { includeNotes: canViewNotes, skipDetailLists: true }),
     getViewerAvatar(userId),
-    getSubscriptionInfo(userId),
   ]);
 
   if (!profile) notFound();
@@ -327,26 +326,6 @@ export default async function ViewerProfilePage({
                 <CardField label="Twitch-User-ID">
                   <span className="font-mono text-xs">{profile.userId}</span>
                 </CardField>
-                <CardField label="Höchste Abo-Stufe">
-                  {profile.highestSubTier ? subTierLabel(profile.highestSubTier) : "Kein Abo bekannt"}
-                </CardField>
-                <CardField label="Abo-Dauer">
-                  {subscription ? (
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      {formatNumber(subscription.maxMonths)} Monate
-                      {subscription.isFounder && <Badge variant="primary">Gründer</Badge>}
-                    </span>
-                  ) : profile.subMonthsMax ? (
-                    `${formatNumber(profile.subMonthsMax)} Monate`
-                  ) : (
-                    "—"
-                  )}
-                  {subscription && (
-                    <span className="block text-xs text-[var(--color-subtle)]">
-                      Laut Abzeichen, bestätigt {formatRelative(subscription.lastSeenAt)}
-                    </span>
-                  )}
-                </CardField>
                 <CardField label="Twitch-Kanal">
                   <TwitchProfileLink login={profile.userName} withLabel />
                 </CardField>
@@ -506,7 +485,8 @@ export default async function ViewerProfilePage({
                         {message.channelName}
                       </TableCell>
                       <TableCell className="max-w-xl">
-                        <MessageContent
+                        <MessageCell
+                          messageId={message.messageId}
                           content={message.content}
                           emotes={message.emotes}
                           badgeInfo={message.badgeInfo}
@@ -585,7 +565,9 @@ export default async function ViewerProfilePage({
                           </span>
                         </div>
                         {event.message && (
-                          <p className="mt-0.5 truncate text-[var(--color-subtle)]">{event.message}</p>
+                          <div className="mt-0.5 text-[var(--color-subtle)]">
+                            <ClampedContent lines={2}>{event.message}</ClampedContent>
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -656,9 +638,9 @@ export default async function ViewerProfilePage({
                         <TableCell className="max-w-sm text-xs">
                           {entry.reason ?? "—"}
                           {entry.deletedMessageContent && (
-                            <p className="mt-0.5 truncate text-[var(--color-subtle)]">
-                              „{entry.deletedMessageContent}“
-                            </p>
+                            <div className="mt-0.5 text-[var(--color-subtle)]">
+                              <ClampedContent lines={2}>„{entry.deletedMessageContent}“</ClampedContent>
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>
