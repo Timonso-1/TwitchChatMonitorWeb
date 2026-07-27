@@ -5,6 +5,7 @@ import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 import { getSession } from "@/lib/auth/session";
 import {
   OAUTH_STATE_COOKIE,
+  absoluteAppUrl,
   exchangeCodeForIdentity,
   verifyOAuthState,
 } from "@/lib/auth/twitch-oauth";
@@ -18,12 +19,12 @@ export async function GET(request: Request) {
 
   const fail = (reason: string) => {
     cookieStore.delete(OAUTH_STATE_COOKIE);
-    return NextResponse.redirect(new URL(`/link-twitch?error=${reason}`, request.url));
+    return NextResponse.redirect(absoluteAppUrl(`/link-twitch?error=${reason}`, request));
   };
 
   const session = await getSession();
   if (!session) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(absoluteAppUrl("/login", request));
   }
 
   // Twitch meldet Abbruch oder Ablehnung über den error-Parameter.
@@ -90,5 +91,5 @@ export async function GET(request: Request) {
 
   cookieStore.delete(OAUTH_STATE_COOKIE);
 
-  return NextResponse.redirect(new URL("/dashboard", request.url));
+  return NextResponse.redirect(absoluteAppUrl("/dashboard", request));
 }

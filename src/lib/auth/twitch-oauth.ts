@@ -22,6 +22,12 @@ export function isTwitchOAuthConfigured(): boolean {
   return Boolean(process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET && getRedirectUri());
 }
 
+/** Öffentliche Basis-URL des Panels (ohne trailing slash). */
+export function getAppUrl(): string | null {
+  const appUrl = process.env.APP_URL?.trim().replace(/\/$/, "");
+  return appUrl || null;
+}
+
 /**
  * Muss exakt mit dem Eintrag in der Twitch-Anwendung übereinstimmen –
  * Twitch vergleicht zeichengenau.
@@ -30,8 +36,19 @@ export function getRedirectUri(): string | null {
   const explicit = process.env.TWITCH_REDIRECT_URI?.trim();
   if (explicit) return explicit;
 
-  const appUrl = process.env.APP_URL?.trim().replace(/\/$/, "");
+  const appUrl = getAppUrl();
   return appUrl ? `${appUrl}/auth/twitch/callback` : null;
+}
+
+/**
+ * Absolute Redirect-URL für OAuth-Routen.
+ * Nutzt APP_URL, damit hinter einem Reverse-Proxy nicht die interne
+ * Adresse (z. B. localhost:3010) in den Location-Header wandert.
+ */
+export function absoluteAppUrl(path: string, request: Request): URL {
+  const appUrl = getAppUrl();
+  if (appUrl) return new URL(path, `${appUrl}/`);
+  return new URL(path, request.url);
 }
 
 export interface OAuthStatePayload {
