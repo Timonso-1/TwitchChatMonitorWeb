@@ -145,9 +145,11 @@ Kein Datenbankschema wird verändert, keine Abhängigkeit hinzugefügt.
 
 ## Test
 
-Das Projekt hat kein Testframework (`package.json` kennt nur `typecheck` und
-`build`). Ein solches einzuführen gehört nicht zu dieser Aufgabe, deshalb wird wie
-folgt geprüft:
+Auf `main` — der Grundlage dieses Zweigs — gibt es kein Testframework;
+`package.json` kennt nur `typecheck` und `build`. Auf dem parallelen Zweig
+`feat/audit-diff` wird Vitest gerade eingeführt, das ist hier aber nicht
+verfügbar. Bewusste Entscheidung für diese Arbeit: **vorerst ohne Testframework.**
+Geprüft wird deshalb so:
 
 - `npm run typecheck` muss fehlerfrei durchlaufen. Die Kopplung zwischen
   `countKey` und den Abfragen ist so gebaut, dass ein Auseinanderlaufen hier
@@ -159,3 +161,7 @@ folgt geprüft:
   Einträgen, Emotes bleibt ohne Zahl, die Zahl bei Beobachtungsliste stimmt mit
   der Zeilenzahl der Seite überein, und ein Nutzer mit eingeschränkten Rechten
   sieht nur die Zahlen der für ihn sichtbaren Einträge.
+
+Sobald Vitest über `feat/audit-diff` auf `main` gelandet ist, ist
+`formatNavCount` der offensichtliche Kandidat für einen echten Unit-Test — reine
+Funktion, klare Grenzwerte. Das ist dann eine eigene, kleine Nacharbeit.
