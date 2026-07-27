@@ -6,7 +6,7 @@ import { ChatBadges } from "@/components/chat-badges";
 import { ChatName } from "@/components/chat-name";
 import { MessageContent } from "@/components/message-content";
 import { ViewerAvatar } from "@/components/viewer-avatar";
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { FeedState, LiveMessage } from "@/lib/live-chat-feed";
 import { cn, formatDateTime } from "@/lib/utils";
 import { highestSeverity, severityStyle } from "@/lib/watchlist";
@@ -34,8 +34,12 @@ const ICON_TINT: Record<string, string> = {
 };
 
 export function LiveChatTable({ messages, feed, emptyLabel }: LiveChatTableProps) {
+  // Bewusst das rohe <table> statt der Table-Komponente: die wickelt sich in
+  // ein eigenes overflow-x-auto-div, das dadurch selbst zum Scroll-Container
+  // wird. Der sticky-Kopf würde sich daran ausrichten statt am Scrollrahmen
+  // des Live-Chats – und damit nie kleben. Die Klassen sind dieselben.
   return (
-    <Table>
+    <table className="w-full caption-bottom border-collapse text-sm">
       <TableHeader className="sticky top-0 z-10 bg-[var(--color-card)]">
         <TableRow>
           <TableHead className="w-40">Zeit</TableHead>
@@ -119,6 +123,6 @@ export function LiveChatTable({ messages, feed, emptyLabel }: LiveChatTableProps
           })
         )}
       </TableBody>
-    </Table>
+    </table>
   );
 }
