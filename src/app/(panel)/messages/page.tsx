@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ChatName } from "@/components/chat-name";
 import { ListTrendHeader } from "@/components/list-trend-header";
-import { MessageContent } from "@/components/message-content";
+import { MessageCell } from "@/components/message-cell";
 import { ChatBadges } from "@/components/chat-badges";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { PanelSurface } from "@/components/panel-surface";
@@ -204,7 +204,8 @@ export default async function MessagesPage({
                       </div>
                     </TableCell>
                     <TableCell className="max-w-xl">
-                      <MessageContent
+                      <MessageCell
+                        messageId={message.messageId}
                         content={message.content}
                         emotes={message.emotes}
                         badgeInfo={message.badgeInfo}

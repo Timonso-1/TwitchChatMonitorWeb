@@ -22,6 +22,8 @@ interface MessageContentProps {
   matches?: TermMatch[];
   /** Emote-Bilder statt Text anzeigen. */
   showEmoteImages?: boolean;
+  /** „Mehr anzeigen“ anbieten. Aus, wenn der Inhalt in einer Schaltfläche steckt. */
+  expandable?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function MessageContent({
   replyTo,
   matches = [],
   showEmoteImages,
+  expandable = true,
 }: MessageContentProps) {
   const parsedEmotes = showEmoteImages ? parseEmotes(emotes, content) : [];
   const months = subscriberMonths(badgeInfo);
@@ -56,7 +59,7 @@ export function MessageContent({
       )}
 
       <div className={cn(isDeleted && "opacity-60")}>
-        <ClampedContent>
+        <ClampedContent expandable={expandable}>
           <HighlightedMessage
             content={content}
             matches={matches}

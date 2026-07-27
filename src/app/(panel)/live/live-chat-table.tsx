@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { ChatBadges } from "@/components/chat-badges";
 import { ChatName } from "@/components/chat-name";
-import { MessageContent } from "@/components/message-content";
+import { MessageCell } from "@/components/message-cell";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { FeedState, LiveMessage } from "@/lib/live-chat-feed";
@@ -94,7 +94,8 @@ export function LiveChatTable({ messages, feed, emptyLabel }: LiveChatTableProps
                 <TableCell className="max-w-xl">
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <MessageContent
+                      <MessageCell
+                        messageId={message.messageId}
                         content={message.content}
                         badgeInfo={message.badgeInfo}
                         isAction={message.isAction}

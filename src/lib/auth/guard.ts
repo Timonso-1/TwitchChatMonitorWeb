@@ -85,6 +85,23 @@ export async function assertPermission(permission: Permission): Promise<ActiveSe
   return session;
 }
 
+/** Werfende Entsprechung zu requireAnyPermission – für Route Handler. */
+export async function assertAnyPermission(permissions: readonly Permission[]): Promise<ActiveSession> {
+  const session = await getSession();
+
+  if (!session) {
+    throw new AuthorizationError("Nicht angemeldet.");
+  }
+  if (session.user.totpEnabled && !session.twoFactorVerified) {
+    throw new AuthorizationError("Zwei-Faktor-Authentifizierung nicht abgeschlossen.");
+  }
+  if (!hasAnyPermission(session.user.permissions, permissions)) {
+    throw new AuthorizationError("Keine Berechtigung für diese Aktion.");
+  }
+
+  return session;
+}
+
 /** Session ohne Rechteprüfung, aber mit Login-Zwang (für Profil/Logout). */
 export async function assertAuthenticated(): Promise<ActiveSession> {
   const session = await getSession();

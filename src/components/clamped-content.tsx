@@ -9,6 +9,13 @@ interface ClampedContentProps {
   className?: string;
   /** Anzahl Zeilen, nach denen abgeschnitten wird. */
   lines?: 2 | 3 | 4;
+  /**
+   * Ob der „Mehr anzeigen“-Umschalter angeboten wird.
+   *
+   * Aus, wenn der Inhalt selbst schon in einer Schaltfläche steckt: ein
+   * Knopf im Knopf ist ungültiges Markup und per Tastatur nicht erreichbar.
+   */
+  expandable?: boolean;
 }
 
 const CLAMP_CLASS: Record<number, string> = {
@@ -23,7 +30,7 @@ const CLAMP_CLASS: Record<number, string> = {
  * Höhenvergleich erkannt statt per Zeichenanzahl – so passt es sich an
  * Emotes, Umbrüche und unterschiedliche Bildschirmbreiten an.
  */
-export function ClampedContent({ children, className, lines = 3 }: ClampedContentProps) {
+export function ClampedContent({ children, className, lines = 3, expandable = true }: ClampedContentProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
@@ -41,7 +48,7 @@ export function ClampedContent({ children, className, lines = 3 }: ClampedConten
       <div ref={ref} className={cn(!expanded && CLAMP_CLASS[lines], className)}>
         {children}
       </div>
-      {overflowing && (
+      {overflowing && expandable && (
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
