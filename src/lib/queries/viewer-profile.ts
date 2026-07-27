@@ -18,10 +18,13 @@ export interface ViewerProfileNote {
 export interface ViewerProfileMessage {
   id: number;
   messageId: string;
+  channelId: string;
   channelName: string;
   content: string;
   color: string | null;
   emotes: string | null;
+  /** Roher badges-Tag – nötig für die Abzeichenbilder des Channels. */
+  badges: string | null;
   badgeInfo: string | null;
   replyToMessageId: string | null;
   bits: number;
@@ -208,10 +211,12 @@ export async function getViewerProfile(
       .select({
         id: messages.id,
         messageId: messages.messageId,
+        channelId: messages.channelId,
         channelName: messages.channelName,
         content: messages.content,
         color: messages.color,
         emotes: messages.emotes,
+        badges: messages.badges,
         badgeInfo: messages.badgeInfo,
         replyToMessageId: messages.replyToMessageId,
         bits: messages.bits,
@@ -344,10 +349,12 @@ export async function getViewerMessagesPage(
       .select({
         id: messages.id,
         messageId: messages.messageId,
+        channelId: messages.channelId,
         channelName: messages.channelName,
         content: messages.content,
         color: messages.color,
         emotes: messages.emotes,
+        badges: messages.badges,
         badgeInfo: messages.badgeInfo,
         replyToMessageId: messages.replyToMessageId,
         bits: messages.bits,

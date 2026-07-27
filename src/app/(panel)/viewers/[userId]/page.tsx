@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, Clock, Coins, Eye, MessageSquare, ShieldAlert, Zap } from "lucide-react";
 import { AreaChart } from "@/components/charts";
+import { ChatBadges } from "@/components/chat-badges";
 import { ChatName } from "@/components/chat-name";
 import { DistributionChart } from "@/components/distribution-chart";
 import { FilterBar, FilterField } from "@/components/filter-bar";
@@ -37,7 +38,7 @@ import { getMessageContext } from "@/lib/queries/twitch";
 import { getViewerEmoteSummary } from "@/lib/queries/emotes";
 import { eventDetailText, formatDuration } from "@/lib/twitch";
 import { emoteImageUrl } from "@/lib/twitch-tags";
-import { getViewerAvatar } from "@/lib/twitch-api";
+import { getCachedBadgeSets, getViewerAvatar } from "@/lib/twitch-api";
 import { formatDateTime, formatNumber, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -146,6 +147,11 @@ export default async function ViewerProfilePage({
         })),
       )
     : null;
+
+  // Abzeichenbilder je Channel – wie im Nachrichten-Tab.
+  const badgeSets = messagesPage
+    ? await getCachedBadgeSets(messagesPage.items.map((message) => message.channelId))
+    : new Map();
 
   const emoteSummary = tab === "overview" && canSeeMessages ? await getViewerEmoteSummary(userId) : null;
 
@@ -461,14 +467,15 @@ export default async function ViewerProfilePage({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-40">Zeit</TableHead>
-                  <TableHead className="w-28">Channel</TableHead>
+                  <TableHead className="w-32">Channel</TableHead>
+                  <TableHead className="w-48">Nutzer</TableHead>
                   <TableHead>Nachricht</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {messagesPage.items.length === 0 ? (
                   <TableEmpty
-                    colSpan={3}
+                    colSpan={4}
                     title={
                       hasMessageFilters
                         ? "Keine Nachrichten für die gewählten Filter"
@@ -483,6 +490,32 @@ export default async function ViewerProfilePage({
                       </TableCell>
                       <TableCell className="text-meta">
                         {message.channelName}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <ViewerAvatar
+                            name={displayName}
+                            imageUrl={avatar?.profileImageUrl}
+                            color={message.color}
+                            size="sm"
+                          />
+
+                          <div className="flex min-w-0 flex-wrap items-center gap-1">
+                            <ChatBadges
+                              badges={message.badges}
+                              badgeInfo={message.badgeInfo}
+                              set={badgeSets.get(message.channelId)}
+                              isBroadcaster={message.isBroadcaster}
+                              isMod={message.isMod}
+                              isVip={message.isVip}
+                              isSubscriber={message.isSubscriber}
+                            />
+                            {/* Kein Link: wir stehen bereits auf diesem Profil. */}
+                            <ChatName color={message.color} className="max-w-28 truncate font-medium">
+                              {displayName}
+                            </ChatName>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="max-w-xl">
                         <MessageCell
