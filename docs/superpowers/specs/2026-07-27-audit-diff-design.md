@@ -140,7 +140,14 @@ Keine Komponenten-Tests — der Dialog ist Darstellung ohne eigene Logik.
 
 ## Berechtigungen
 
-Unverändert. `/audit` ist bereits über `requirePermission(PERMISSIONS.AUDIT_VIEW)` abgesichert; der Dialog zeigt ausschließlich Daten, die mit derselben Anfrage ohnehin geladen werden. Kein neuer Endpunkt, keine neue Berechtigung.
+Unverändert. `/audit` ist bereits über `requirePermission(PERMISSIONS.AUDIT_VIEW)` abgesichert; der Dialog zeigt ausschließlich Daten derselben Anfrage. Kein neuer Endpunkt, keine neue Berechtigung.
+
+## Nachträgliche Korrekturen
+
+Zwei Punkte, die sich erst bei der Planung zeigten:
+
+1. **`userAgent` wird nicht geladen.** Weder `AuditListItem` (`src/lib/queries/accounts.ts:342`) noch der Select in `listAuditEntries` führen die Spalte. Der Dialog braucht dafür je eine zusätzliche Zeile — die Behauptung „keine Query-Änderung nötig" gilt für alle übrigen Felder, nicht für dieses.
+2. **`src/lib/audit.ts` beginnt mit `import "server-only"`.** `auditActionLabel()` kann deshalb nicht in der Client-Komponente aufgerufen werden. Das Label wird auf dem Server berechnet und als Prop übergeben; `audit.ts` bleibt unangetastet.
 
 ## Bewusst nicht enthalten
 
