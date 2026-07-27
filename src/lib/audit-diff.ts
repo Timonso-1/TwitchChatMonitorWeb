@@ -37,22 +37,50 @@ export type AuditDetail =
   | { kind: "properties"; entries: PropertyEntry[] }
   | { kind: "none" };
 
-const FIELD_LABELS: Record<string, string> = {
-  permissions: "Berechtigungen",
-  roles: "Rollen",
-  priority: "Priorität",
-  isActive: "Aktiv",
-  email: "E-Mail",
-  displayName: "Anzeigename",
-  username: "Benutzername",
-  name: "Name",
-  key: "Schlüssel",
-  description: "Beschreibung",
-  color: "Farbe",
-  rows: "Zeilen",
-  filters: "Filter",
-  truncated: "Gekürzt",
-};
+// Map statt Objekt-Literal: `JSON.parse` erzeugt für Schlüssel wie "__proto__"
+// oder "constructor" echte Eigenschaften auf dem geparsten Objekt. Ein Objekt-
+// Literal erbt von Object.prototype, sodass `FIELD_LABELS["__proto__"]` auf
+// Object.prototype selbst zeigen würde statt auf undefined – `??` würde dann
+// nicht greifen und ein Nicht-String-„Label“ nach oben durchreichen. `Map.get`
+// kennt keine Prototypenkette und ist dagegen immun.
+const FIELD_LABELS = new Map<string, string>([
+  ["permissions", "Berechtigungen"],
+  ["roles", "Rollen"],
+  ["priority", "Priorität"],
+  ["isActive", "Aktiv"],
+  ["email", "E-Mail"],
+  ["displayName", "Anzeigename"],
+  ["username", "Benutzername"],
+  ["name", "Name"],
+  ["key", "Schlüssel"],
+  ["description", "Beschreibung"],
+  ["color", "Farbe"],
+  ["rows", "Zeilen"],
+  ["filters", "Filter"],
+  ["truncated", "Gekürzt"],
+  // channels.ts
+  ["broadcasterId", "Broadcaster-ID"],
+  ["active", "Aktiv"],
+  // watchlist.ts
+  ["term", "Begriff"],
+  ["severity", "Schweregrad"],
+  ["matchType", "Trefferart"],
+  // viewer-notes.ts
+  ["noteId", "Notiz-ID"],
+  ["foreignNote", "Fremde Notiz"],
+  ["pinned", "Angeheftet"],
+  // auth.ts
+  ["attempts", "Versuche"],
+  ["twoFactor", "Zwei-Faktor-Authentifizierung"],
+  ["mode", "Methode"],
+  ["recovery", "Recovery-Code"],
+  // accounts.ts
+  ["scope", "Umfang"],
+  ["previousTwitchLogin", "Vorheriger Twitch-Login"],
+  // auth/twitch/callback/route.ts
+  ["twitchLogin", "Twitch-Login"],
+  ["twitchUserId", "Twitch-User-ID"],
+]);
 
 /** Schlüssel, deren Werte als Mengen verglichen werden. */
 const LIST_KEYS = new Set(["permissions", "roles"]);
@@ -62,7 +90,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function fieldLabel(key: string): string {
-  return FIELD_LABELS[key] ?? key;
+  return FIELD_LABELS.get(key) ?? key;
 }
 
 function toStringList(value: unknown): string[] {
@@ -119,7 +147,9 @@ function toProperties(metadata: Record<string, unknown>): AuditDetail {
   const entries: PropertyEntry[] = Object.entries(metadata).map(([key, value]) => ({
     key,
     label: fieldLabel(key),
-    value: formatScalar(value) ?? "—",
+    // Leerstring ist ein gültiger, aber nicht darstellbarer Wert – ebenso wie
+    // null/undefined auf "—" abbilden statt ihn verschwinden zu lassen.
+    value: formatScalar(value) || "—",
   }));
 
   return entries.length > 0 ? { kind: "properties", entries } : { kind: "none" };
