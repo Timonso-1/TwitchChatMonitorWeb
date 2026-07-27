@@ -132,7 +132,7 @@ export async function createRoleAction(_prev: ActionState, formData: FormData): 
     targetType: "role",
     targetId: uuid,
     targetLabel: parsed.data.name,
-    metadata: { permissions: permissionResult.permissions, priority: parsed.data.priority },
+    metadata: { after: { permissions: permissionResult.permissions, priority: parsed.data.priority } },
   });
 
   revalidatePath("/roles");
@@ -265,6 +265,13 @@ export async function deleteRoleAction(_prev: ActionState, formData: FormData): 
     );
   }
 
+  // Muss vor dem Löschen geschehen: admin_role_permissions hängt per
+  // ON DELETE CASCADE an admin_roles.
+  const removedPermissions = await db
+    .select({ permission: adminRolePermissions.permission })
+    .from(adminRolePermissions)
+    .where(eq(adminRolePermissions.roleUuid, uuid));
+
   await db.delete(adminRoles).where(eq(adminRoles.uuid, uuid));
 
   await writeAudit({
@@ -274,6 +281,12 @@ export async function deleteRoleAction(_prev: ActionState, formData: FormData): 
     targetType: "role",
     targetId: uuid,
     targetLabel: role.name,
+    metadata: {
+      before: {
+        permissions: removedPermissions.map((row) => row.permission),
+        priority: role.priority,
+      },
+    },
   });
 
   revalidatePath("/roles");
