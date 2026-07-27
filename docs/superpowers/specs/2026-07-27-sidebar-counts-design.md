@@ -111,11 +111,15 @@ Seitenaufruf blockiert je auf dem vollständigen `COUNT(*)` über `messages`. Re
 Da die Zahlen rechtsbündig stehen, entsteht beim Nachladen kein Layoutsprung: Der
 Text links behält seine Position.
 
-**Optik:** rechtsbündige Zahl in `text-xs tabular-nums` in
-`var(--color-subtle)`, in der aktiven Zeile etwas kräftiger in
-`var(--color-muted-foreground)`. Kein Chip mit eigenem Hintergrund — bei zehn
-Einträgen untereinander würde das die ruhige Wirkung der Navigation zerstören, und
-in der aktiven Zeile läge ein Chip-Hintergrund auf dem Accent-Hintergrund.
+**Optik:** rechtsbündiger Chip auf Basis der vorhandenen `Badge`-Komponente
+(`variant="secondary"`), verkleinert auf `text-[0.7rem]` mit `tabular-nums`.
+
+Ein Detail, das dabei gelöst werden musste: `--color-secondary` und
+`--color-accent` haben in `globals.css` denselben Wert (im Dark-Theme beide
+`hsl(0 0% 13%)`, im Light-Theme 94 % gegen 93 %). Die aktive Navigationszeile
+liegt auf `--color-accent`, ein Standard-Chip wäre dort also praktisch
+unsichtbar. In der aktiven Zeile wechselt der Chip deshalb auf
+`--color-background` und wirkt aus dem Accent-Hintergrund ausgestanzt.
 
 Das `title`-Attribut trägt den vollständigen Wert in deutscher
 Tausendertrennung (`1.234.567`), damit die Kurzform nachprüfbar bleibt.
