@@ -6,7 +6,7 @@ import { MessageDetailDialog } from "@/components/message-detail-dialog";
 
 type MessageContentProps = React.ComponentProps<typeof MessageContent>;
 
-interface MessageCellProps extends Omit<MessageContentProps, "expandable"> {
+interface MessageCellProps extends Omit<MessageContentProps, "overflow"> {
   messageId: string;
 }
 
@@ -23,7 +23,7 @@ export function MessageCell({ messageId, ...content }: MessageCellProps) {
 
   return (
     <div className="relative">
-      <MessageContent {...content} expandable={false} />
+      <MessageContent {...content} overflow="clamped" />
 
       <button
         type="button"

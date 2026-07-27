@@ -22,8 +22,15 @@ interface MessageContentProps {
   matches?: TermMatch[];
   /** Emote-Bilder statt Text anzeigen. */
   showEmoteImages?: boolean;
-  /** „Mehr anzeigen“ anbieten. Aus, wenn der Inhalt in einer Schaltfläche steckt. */
-  expandable?: boolean;
+  /**
+   * Wie mit langen Nachrichten umgegangen wird.
+   *
+   * - `expandable`: auf drei Zeilen klemmen, mit „Mehr anzeigen“ (Vorgabe)
+   * - `clamped`: klemmen ohne Umschalter – für Inhalt in einer Schaltfläche,
+   *   wo ein Knopf im Knopf ungültiges Markup wäre
+   * - `full`: nichts klemmen, der ganze Text steht da
+   */
+  overflow?: "expandable" | "clamped" | "full";
 }
 
 /**
@@ -41,10 +48,37 @@ export function MessageContent({
   replyTo,
   matches = [],
   showEmoteImages,
-  expandable = true,
+  overflow = "expandable",
 }: MessageContentProps) {
   const parsedEmotes = showEmoteImages ? parseEmotes(emotes, content) : [];
   const months = subscriberMonths(badgeInfo);
+
+  const body = (
+    <>
+      <HighlightedMessage
+        content={content}
+        matches={matches}
+        isAction={isAction}
+        className={isDeleted ? "line-through decoration-[var(--color-destructive)]" : undefined}
+      />
+
+      <span className="ml-1.5 inline-flex flex-wrap items-center gap-1 align-middle">
+        {isDeleted && (
+          <Badge variant="destructive" title="Diese Nachricht wurde von der Moderation entfernt">
+            <Trash2 className="size-3" />
+            Gelöscht
+          </Badge>
+        )}
+        {bits > 0 && <Badge variant="success">{formatNumber(bits)} Bits</Badge>}
+        {isFirstMessage && <Badge variant="warning">Erste Nachricht</Badge>}
+        {months !== null && months > 0 && (
+          <Badge variant="secondary" title="Abo-Dauer laut Twitch-Abzeichen">
+            {formatNumber(months)} Monate Abo
+          </Badge>
+        )}
+      </span>
+    </>
+  );
 
   return (
     <div className="min-w-0 space-y-1">
@@ -59,30 +93,11 @@ export function MessageContent({
       )}
 
       <div className={cn(isDeleted && "opacity-60")}>
-        <ClampedContent expandable={expandable}>
-          <HighlightedMessage
-            content={content}
-            matches={matches}
-            isAction={isAction}
-            className={isDeleted ? "line-through decoration-[var(--color-destructive)]" : undefined}
-          />
-
-          <span className="ml-1.5 inline-flex flex-wrap items-center gap-1 align-middle">
-            {isDeleted && (
-              <Badge variant="destructive" title="Diese Nachricht wurde von der Moderation entfernt">
-                <Trash2 className="size-3" />
-                Gelöscht
-              </Badge>
-            )}
-            {bits > 0 && <Badge variant="success">{formatNumber(bits)} Bits</Badge>}
-            {isFirstMessage && <Badge variant="warning">Erste Nachricht</Badge>}
-            {months !== null && months > 0 && (
-              <Badge variant="secondary" title="Abo-Dauer laut Twitch-Abzeichen">
-                {formatNumber(months)} Monate Abo
-              </Badge>
-            )}
-          </span>
-        </ClampedContent>
+        {overflow === "full" ? (
+          body
+        ) : (
+          <ClampedContent expandable={overflow === "expandable"}>{body}</ClampedContent>
+        )}
       </div>
 
       {/* Verwendete Emotes als Bilder */}
