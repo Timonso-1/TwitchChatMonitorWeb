@@ -69,12 +69,14 @@ export function AuditDetailDialog({
 }
 
 function MetaRow({ label, value, mono = false }: { label: string; value: string | null; mono?: boolean }) {
-  if (!value) return null;
+  // Echtes Fehlen (null) blendet die Zeile aus. Ein Leerstring ist dagegen ein
+  // vorhandener, aber leerer Wert und wird als "—" dargestellt statt zu verschwinden.
+  if (value === null) return null;
 
   return (
     <>
       <dt className="text-xs text-[var(--color-muted-foreground)] sm:pt-0.5">{label}</dt>
-      <dd className={mono ? "break-all font-mono text-xs" : "break-words"}>{value}</dd>
+      <dd className={mono ? "break-all font-mono text-xs" : "break-words"}>{value === "" ? "—" : value}</dd>
     </>
   );
 }
