@@ -4,17 +4,19 @@ import { AlertTriangle, ClipboardList, Clock } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { StatCard } from "@/components/stat-card";
-import { Badge } from "@/components/ui/badge";
 import { PanelSurface } from "@/components/panel-surface";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { auditActionLabel } from "@/lib/audit";
 import { getAuditStats, listAuditActions, listAuditEntries } from "@/lib/queries/accounts";
-import { formatDateTime, formatRelative, parsePositiveInt, parseSearchParam, truncate } from "@/lib/utils";
+import { formatDateTime, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
+import { AuditTableBody } from "./audit-table-body";
+import type { AuditRowEntry } from "@/components/audit/audit-detail-dialog";
+import { normalizeAuditDetail } from "@/lib/audit-diff";
 
 export const metadata: Metadata = { title: "Audit-Log" };
 export const dynamic = "force-dynamic";
@@ -42,6 +44,22 @@ export default async function AuditPage({
   ]);
 
   const activeFilters = { actor, action, outcome: outcome === "all" ? undefined : outcome };
+
+  const entries: AuditRowEntry[] = items.map((entry) => ({
+    id: entry.id,
+    action: entry.action,
+    actionLabel: auditActionLabel(entry.action),
+    createdAt: formatDateTime(entry.createdAt),
+    actorName: entry.actorName,
+    targetType: entry.targetType,
+    targetId: entry.targetId,
+    targetLabel: entry.targetLabel,
+    ipAddress: entry.ipAddress,
+    userAgent: entry.userAgent,
+    note: entry.note,
+    outcome: entry.outcome,
+    detail: normalizeAuditDetail(entry.metadata),
+  }));
 
   return (
     <>
@@ -105,47 +123,7 @@ export default async function AuditPage({
                 <TableHead className="w-28">Ergebnis</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {items.length === 0 ? (
-                <TableEmpty colSpan={6} title="Keine Einträge gefunden" />
-              ) : (
-                items.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-[var(--color-muted-foreground)]">
-                      {formatDateTime(entry.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {auditActionLabel(entry.action)}
-                      <span className="block font-mono text-[0.65rem] text-[var(--color-muted-foreground)]">
-                        {entry.action}
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-w-36 truncate text-sm">{entry.actorName ?? "System"}</TableCell>
-                    <TableCell className="text-sm">
-                      {entry.targetLabel ?? entry.targetId ?? "—"}
-                      {entry.targetType && (
-                        <span className="ml-1.5 text-xs text-[var(--color-muted-foreground)]">
-                          ({entry.targetType})
-                        </span>
-                      )}
-                      {entry.note && (
-                        <span className="block text-xs text-[var(--color-muted-foreground)]">
-                          {truncate(entry.note, 90)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-[var(--color-muted-foreground)]">
-                      {entry.ipAddress ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={entry.outcome === "failure" ? "destructive" : "success"}>
-                        {entry.outcome === "failure" ? "Fehler" : "OK"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
+            <AuditTableBody entries={entries} />
           </Table>
 
           <Pagination basePath="/audit" params={activeFilters} page={page} pageSize={PAGE_SIZE} total={total} />
