@@ -14,7 +14,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { auditActionLabel } from "@/lib/audit";
 import { getAuditStats, listAuditActions, listAuditEntries } from "@/lib/queries/accounts";
 import { formatDateTime, formatRelative, parsePositiveInt, parseSearchParam } from "@/lib/utils";
-import { AuditTableBody } from "./audit-table-body";
+import { AuditTableBody, ROW_HINT_ID } from "./audit-table-body";
 import type { AuditRowEntry } from "@/components/audit/audit-detail-dialog";
 import { normalizeAuditDetail } from "@/lib/audit-diff";
 
@@ -112,6 +112,11 @@ export default async function AuditPage({
       </FilterBar>
 
       <PanelSurface variant="flush">
+          {entries.length > 0 && (
+            <p id={ROW_HINT_ID} className="sr-only">
+              Enter oder Leertaste öffnet die Details
+            </p>
+          )}
           <Table>
             <TableHeader>
               <TableRow>

@@ -6,19 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { TableBody, TableCell, TableEmpty, TableRow } from "@/components/ui/table";
 import { truncate } from "@/lib/utils";
 
-const ROW_HINT_ID = "audit-row-activation-hint";
+export const ROW_HINT_ID = "audit-row-activation-hint";
 
 export function AuditTableBody({ entries }: { entries: AuditRowEntry[] }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selected = entries.find((entry) => entry.id === selectedId) ?? null;
-  const rowHintId = ROW_HINT_ID;
 
   return (
     <>
       <TableBody>
-        <TableRow className="sr-only">
-          <TableCell id={rowHintId}>Enter öffnet die Details</TableCell>
-        </TableRow>
         {entries.length === 0 ? (
           <TableEmpty colSpan={6} title="Keine Einträge gefunden" />
         ) : (
@@ -26,7 +22,7 @@ export function AuditTableBody({ entries }: { entries: AuditRowEntry[] }) {
             <TableRow
               key={entry.id}
               tabIndex={0}
-              aria-describedby={rowHintId}
+              aria-describedby={ROW_HINT_ID}
               onClick={() => setSelectedId(entry.id)}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" && event.key !== " ") return;
