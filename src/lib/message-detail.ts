@@ -60,10 +60,67 @@ export interface MessageDeletion {
   occurredAt: string;
 }
 
+/** Eine Nachricht aus der zeitlichen Umgebung, unabhängig von Antwortbezügen. */
+export interface SurroundingMessage {
+  id: number;
+  messageId: string;
+  userId: string;
+  userName: string;
+  displayName: string | null;
+  color: string | null;
+  content: string;
+  receivedAt: string;
+  /** Wurde später von der Moderation entfernt. */
+  deleted: boolean;
+}
+
+/**
+ * Obergrenze je Richtung.
+ *
+ * Der Server liefert immer diese Zahl, der Regler im Dialog schneidet daraus
+ * zu. So kostet das Verstellen keine weitere Abfrage – bei der Latenz zur
+ * Datenbank würde sonst jeder Reglerschritt spürbar hängen.
+ */
+export const SURROUNDING_MAX = 25;
+
+/** Voreinstellung des Reglers. */
+export const SURROUNDING_DEFAULT = 5;
+
 export interface MessageDetailPayload {
   message: MessageDetailMessage;
   conversation: ConversationMessage[];
   deletion: MessageDeletion | null;
+  /** Bis zu SURROUNDING_MAX je Richtung, aus demselben Channel, nach Zeit sortiert. */
+  surrounding: { before: SurroundingMessage[]; after: SurroundingMessage[] };
+}
+
+export interface SlicedSurrounding {
+  before: SurroundingMessage[];
+  after: SurroundingMessage[];
+  /** Es gibt keine älteren Nachrichten mehr als die gezeigten. */
+  atStart: boolean;
+  /** Es gibt keine neueren Nachrichten mehr als die gezeigten. */
+  atEnd: boolean;
+}
+
+/**
+ * Schneidet die vom Server gelieferte Umgebung auf die eingestellte Größe zu.
+ *
+ * `before` kommt chronologisch, die dem Ereignis nächsten Einträge stehen also
+ * hinten – deshalb wird von hinten geschnitten. Der Startindex muss dabei bei 0
+ * abgefangen werden: liegen weniger Nachrichten vor als gewünscht, würde ein
+ * negativer Index nur die letzten davon liefern statt aller.
+ */
+export function sliceSurrounding(
+  surrounding: MessageDetailPayload["surrounding"],
+  size: number,
+): SlicedSurrounding {
+  return {
+    before: surrounding.before.slice(Math.max(0, surrounding.before.length - size)),
+    after: surrounding.after.slice(0, size),
+    atStart: surrounding.before.length < size,
+    atEnd: surrounding.after.length < size,
+  };
 }
 
 /**

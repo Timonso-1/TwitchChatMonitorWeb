@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messages, moderationActions } from "@/lib/db/schema";
 import type { BadgeImage } from "@/lib/twitch-api";
@@ -9,7 +9,7 @@ import { getConversation } from "@/lib/queries/twitch";
 import { getActiveWatchTerms } from "@/lib/queries/watchlist";
 import { parseBadges } from "@/lib/twitch-tags";
 import { findMatches } from "@/lib/watchlist";
-import type { MessageDetailPayload } from "@/lib/message-detail";
+import { SURROUNDING_MAX, type MessageDetailPayload, type SurroundingMessage } from "@/lib/message-detail";
 
 /**
  * Alles, was der Detaildialog zu einer Nachricht zeigt.
@@ -50,11 +50,12 @@ export async function loadMessageDetail(messageId: string): Promise<MessageDetai
 
   if (!row) return null;
 
-  const [terms, avatarMap, badgeSetMap, conversation, deletionRows] = await Promise.all([
+  const [terms, avatarMap, badgeSetMap, conversation, surrounding, deletionRows] = await Promise.all([
     getActiveWatchTerms(),
     getCachedViewerAvatars([row.userId]),
     getCachedBadgeSets([row.channelId]),
     getConversation(messageId),
+    getSurroundingMessages(row.channelUuid, row.id),
 
     db
       .select({ reason: moderationActions.reason, occurredAt: moderationActions.occurredAt })
@@ -88,7 +89,78 @@ export async function loadMessageDetail(messageId: string): Promise<MessageDetai
     deletion: deletion
       ? { reason: deletion.reason, occurredAt: deletion.occurredAt.toISOString() }
       : null,
+    surrounding,
   };
+}
+
+/**
+ * Die zeitliche Umgebung einer Nachricht im selben Channel.
+ *
+ * Anders als `getConversation` geht es hier nicht um Antwortbezüge, sondern um
+ * den Chatverlauf drumherum: was unmittelbar davor und danach geschrieben wurde,
+ * unabhängig davon, ob es Antworten sind oder später gelöscht wurden.
+ *
+ * Sortiert und begrenzt wird über `messages.id` statt über `received_at`: die
+ * Spalte ist eindeutig, sodass Nachrichten innerhalb derselben Sekunde eine
+ * stabile Reihenfolge behalten. Beide Abfragen laufen über den vorhandenen
+ * Index `idx_messages_channel_id (channel_uuid, id)` als reiner Bereichsscan.
+ */
+async function getSurroundingMessages(
+  channelUuid: string,
+  id: number,
+): Promise<{ before: SurroundingMessage[]; after: SurroundingMessage[] }> {
+  const columns = {
+    id: messages.id,
+    messageId: messages.messageId,
+    userId: messages.userId,
+    userName: messages.userName,
+    displayName: messages.displayName,
+    color: messages.color,
+    content: messages.content,
+    receivedAt: messages.receivedAt,
+  };
+
+  const [olderRows, newerRows] = await Promise.all([
+    db
+      .select(columns)
+      .from(messages)
+      .where(and(eq(messages.channelUuid, channelUuid), lt(messages.id, id)))
+      .orderBy(desc(messages.id))
+      .limit(SURROUNDING_MAX),
+
+    db
+      .select(columns)
+      .from(messages)
+      .where(and(eq(messages.channelUuid, channelUuid), gt(messages.id, id)))
+      .orderBy(asc(messages.id))
+      .limit(SURROUNDING_MAX),
+  ]);
+
+  // Absteigend geholt, damit das Limit die naechstgelegenen trifft – fuer die
+  // Anzeige muss es wieder chronologisch sein.
+  const older = olderRows.reverse();
+
+  const deleted = await deletedMessageIds([...older, ...newerRows].map((row) => row.messageId));
+
+  const toEntry = (row: (typeof olderRows)[number]): SurroundingMessage => ({
+    ...row,
+    receivedAt: row.receivedAt.toISOString(),
+    deleted: deleted.has(row.messageId),
+  });
+
+  return { before: older.map(toEntry), after: newerRows.map(toEntry) };
+}
+
+/** Welche dieser Nachrichten spaeter von der Moderation entfernt wurden. */
+async function deletedMessageIds(messageIds: string[]): Promise<Set<string>> {
+  if (messageIds.length === 0) return new Set();
+
+  const rows = await db
+    .select({ deletedMessageId: moderationActions.deletedMessageId })
+    .from(moderationActions)
+    .where(inArray(moderationActions.deletedMessageId, messageIds));
+
+  return new Set(rows.map((row) => row.deletedMessageId).filter((value): value is string => Boolean(value)));
 }
 
 /** Nur die Abzeichenbilder dieser einen Nachricht – nicht der ganze Satz. */
