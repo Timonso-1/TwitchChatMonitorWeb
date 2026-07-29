@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useActionToast } from "@/components/ui/toast";
 import { deleteChannelAction, toggleChannelActiveAction, updateChannelAction } from "@/lib/actions/channels";
 import { IDLE_STATE } from "@/lib/actions/types";
 
@@ -46,12 +47,12 @@ export function ChannelRowActions({ channel, canUpdate, canDelete }: ChannelRowA
   const [toggleState, toggleAction] = useActionState(toggleChannelActiveAction, IDLE_STATE);
   const router = useRouter();
 
-  useEffect(() => {
-    if (toggleState.status === "success") {
-      setMenuOpen(false);
-      router.refresh();
-    }
-  }, [toggleState, router]);
+  // Ohne Toast bliebe ein fehlgeschlagenes Deaktivieren voellig unsichtbar:
+  // das Dropdown hat keinen Platz für eine Meldung.
+  useActionToast(toggleState, () => {
+    setMenuOpen(false);
+    router.refresh();
+  });
 
   return (
     <>
