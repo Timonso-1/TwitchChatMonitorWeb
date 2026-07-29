@@ -3,6 +3,8 @@ import { gt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messages } from "@/lib/db/schema";
 import { getActiveWatchTerms } from "@/lib/queries/watchlist";
+import { getCachedViewerAvatars } from "@/lib/twitch-api";
+import { buildWatchlistAlertPayload, type WatchlistAlertHit } from "@/lib/discord";
 import { findMatches } from "@/lib/watchlist";
 import { truncate } from "@/lib/utils";
 
@@ -32,6 +34,7 @@ interface AlertState {
 const globalForAlerts = globalThis as unknown as {
   __watchlistAlertState?: AlertState;
   __watchlistAlertTimer?: ReturnType<typeof setInterval>;
+  __watchlistAlertRunning?: boolean;
 };
 
 async function getLatestMessageId(): Promise<number> {
@@ -39,47 +42,37 @@ async function getLatestMessageId(): Promise<number> {
   return row?.id ?? 0;
 }
 
-async function sendDiscordAlert(hit: {
-  channelName: string;
-  userId: string;
-  userName: string;
-  displayName: string | null;
-  content: string;
-  terms: string[];
-}): Promise<void> {
+async function sendDiscordAlert(hit: WatchlistAlertHit): Promise<void> {
   const url = process.env.WATCHLIST_WEBHOOK_URL;
   if (!url) return;
 
-  const name = hit.displayName ?? hit.userName;
-  const appUrl = process.env.APP_URL?.replace(/\/$/, "");
-
-  const payload = {
-    embeds: [
-      {
-        title: "🚨 Kritischer Wortfilter-Treffer",
-        description: `**${name}** in **${hit.channelName}**:\n> ${truncate(hit.content, 300)}`,
-        color: 0xef4444,
-        fields: [
-          { name: "Begriff(e)", value: hit.terms.join(", ") || "—", inline: true },
-          ...(appUrl ? [{ name: "Profil", value: `${appUrl}/viewers/${hit.userId}`, inline: true }] : []),
-        ],
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
+  const payload = buildWatchlistAlertPayload(hit, process.env.APP_URL);
 
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),
     });
+
+    // Discord drosselt Webhooks und antwortet dann mit 429. Ohne diese Pruefung
+    // gilt jede Antwort als Erfolg und verworfene Alarme fallen niemandem auf.
+    if (!response.ok) {
+      console.error(`[watchlist-alerts] Webhook antwortete ${response.status} ${response.statusText}`);
+    }
   } catch (error) {
     console.error("[watchlist-alerts] Webhook fehlgeschlagen:", error);
   }
 }
 
+/**
+ * Ein Durchlauf der Prüfung.
+ *
+ * Der Aufrufer stellt sicher, dass nie zwei gleichzeitig laufen – siehe
+ * `runCycle`. Ohne das verschickt ein langsamer Durchlauf seine Alarme ein
+ * zweites Mal, weil der Cursor erst am Ende vorrueckt.
+ */
 async function checkForCriticalHits(): Promise<void> {
   const state = globalForAlerts.__watchlistAlertState;
   if (!state) return;
@@ -91,11 +84,13 @@ async function checkForCriticalHits(): Promise<void> {
     .select({
       id: messages.id,
       channelUuid: messages.channelUuid,
+      channelId: messages.channelId,
       channelName: messages.channelName,
       userId: messages.userId,
       userName: messages.userName,
       displayName: messages.displayName,
       content: messages.content,
+      receivedAt: messages.receivedAt,
     })
     .from(messages)
     .where(gt(messages.id, state.lastMessageId))
@@ -104,28 +99,70 @@ async function checkForCriticalHits(): Promise<void> {
 
   if (rows.length === 0) return;
 
-  let alertsSent = 0;
-
-  if (criticalTerms.length > 0) {
-    for (const row of rows) {
-      if (alertsSent >= MAX_ALERTS_PER_CYCLE) break;
-
-      const matches = findMatches(row.content, criticalTerms, row.channelUuid);
-      if (matches.length === 0) continue;
-
-      await sendDiscordAlert({
-        channelName: row.channelName,
-        userId: row.userId,
-        userName: row.userName,
-        displayName: row.displayName,
-        content: row.content,
-        terms: [...new Set(matches.map((match) => match.term))],
-      });
-      alertsSent++;
-    }
+  if (criticalTerms.length === 0) {
+    state.lastMessageId = rows[rows.length - 1]!.id;
+    return;
   }
 
-  state.lastMessageId = rows[rows.length - 1]!.id;
+  // Erst suchen, dann senden. Der Cursor darf nur bis zur letzten Zeile
+  // vorruecken, die wirklich geprueft wurde – sonst gehen die Nachrichten
+  // hinter der Obergrenze verloren, statt im naechsten Durchlauf dranzukommen.
+  const hits: Array<{ row: (typeof rows)[number]; terms: string[] }> = [];
+  let lastProcessedId = state.lastMessageId;
+
+  for (const row of rows) {
+    if (hits.length >= MAX_ALERTS_PER_CYCLE) break;
+
+    const matches = findMatches(row.content, criticalTerms, row.channelUuid);
+    if (matches.length > 0) {
+      hits.push({ row, terms: [...new Set(matches.map((match) => match.term))] });
+    }
+
+    lastProcessedId = row.id;
+  }
+
+  // Avatare gebuendelt statt einzeln je Alarm: das war eine Datenbankabfrage
+  // pro Meldung und hat die Durchlaufzeit unnoetig hochgetrieben.
+  const avatars = hits.length
+    ? await getCachedViewerAvatars(hits.map((hit) => hit.row.userId)).catch(() => new Map())
+    : new Map();
+
+  for (const { row, terms: hitTerms } of hits) {
+    await sendDiscordAlert({
+      channelId: row.channelId,
+      channelName: row.channelName,
+      userId: row.userId,
+      userName: row.userName,
+      displayName: row.displayName,
+      content: row.content,
+      receivedAt: row.receivedAt,
+      avatarUrl: avatars.get(row.userId)?.profileImageUrl ?? null,
+      terms: hitTerms,
+    });
+  }
+
+  state.lastMessageId = lastProcessedId;
+}
+
+/**
+ * Führt einen Durchlauf aus, sofern nicht schon einer läuft.
+ *
+ * `setInterval` feuert unabhängig davon, ob der vorige Durchlauf fertig ist.
+ * Da der Cursor erst am Ende vorrückt, würde ein überlappender Durchlauf
+ * dieselben Nachrichten noch einmal lesen und die Alarme doppelt verschicken.
+ * Ein übersprungener Takt kostet nichts: der nächste liest ohnehin alles nach.
+ */
+async function runCycle(): Promise<void> {
+  if (globalForAlerts.__watchlistAlertRunning) return;
+  globalForAlerts.__watchlistAlertRunning = true;
+
+  try {
+    await checkForCriticalHits();
+  } catch (error) {
+    console.error("[watchlist-alerts] Prüfung fehlgeschlagen:", error);
+  } finally {
+    globalForAlerts.__watchlistAlertRunning = false;
+  }
 }
 
 /**
@@ -146,8 +183,6 @@ export function startWatchlistAlertPolling(): void {
     });
 
   globalForAlerts.__watchlistAlertTimer = setInterval(() => {
-    void checkForCriticalHits().catch((error) => {
-      console.error("[watchlist-alerts] Prüfung fehlgeschlagen:", error);
-    });
+    void runCycle();
   }, POLL_INTERVAL_MS);
 }

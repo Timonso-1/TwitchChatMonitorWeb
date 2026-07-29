@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { adminWatchTerms, messages } from "@/lib/db/schema";
 import { inRange } from "@/lib/queries/range-filter";
 import type { ResolvedRange } from "@/lib/range";
-import { findMatches, type TermMatch, type WatchTermLike } from "@/lib/watchlist";
+import { buildTermPattern, findMatches, type TermMatch, type WatchTermLike } from "@/lib/watchlist";
 
 export interface WatchTermRow {
   id: number;
@@ -222,4 +222,95 @@ export async function getTermStats(terms: WatchTermLike[], range: ResolvedRange)
   });
 
   return stats.sort((a, b) => b.hits - a.hits);
+}
+
+/**
+ * Wie viele der jüngsten Nachrichten die Vorschau prüft.
+ *
+ * Bewusst ein festes Fenster statt des gesamten Bestands: die Prüfung läuft in
+ * JavaScript, weil Regex-Begriffe nicht nach SQL übersetzbar sind. Ein paar
+ * tausend Nachrichten genügen, um ein zu weites Muster zu erkennen – ein `.*`
+ * trifft schon in den ersten Zeilen alles.
+ */
+export const PREVIEW_SCAN_LIMIT = 2000;
+
+export interface WatchTermPreviewHit {
+  messageId: string;
+  channelName: string;
+  userName: string;
+  displayName: string | null;
+  content: string;
+  receivedAt: Date;
+  matches: TermMatch[];
+}
+
+export interface WatchTermPreview {
+  /** Wie viele Nachrichten tatsächlich geprüft wurden. */
+  scanned: number;
+  /** Treffer im geprüften Fenster insgesamt. */
+  hits: number;
+  /** Die jüngsten Treffer als Beispiel. */
+  samples: WatchTermPreviewHit[];
+}
+
+const PREVIEW_SAMPLES = 8;
+
+/**
+ * Probelauf eines Begriffs gegen die zuletzt aufgezeichneten Nachrichten.
+ *
+ * Beantwortet die Frage, die die Syntaxprüfung offen lässt: Ein `.*` ist ein
+ * gültiger regulärer Ausdruck und trifft trotzdem jede Nachricht. Ohne
+ * Probelauf fällt das erst auf, wenn der Begriff aktiv ist.
+ */
+export async function previewWatchTerm(input: {
+  term: string;
+  matchType: string;
+  caseSensitive: boolean;
+  channelUuid?: string | null;
+}): Promise<WatchTermPreview> {
+  const candidate: WatchTermLike = {
+    id: 0,
+    term: input.term,
+    matchType: input.matchType,
+    severity: "info",
+    caseSensitive: input.caseSensitive,
+  };
+
+  // Ungültiges Muster: keine Treffer statt eines Fehlers – die Meldung dazu
+  // liefert bereits die Syntaxprüfung der Server Action.
+  if (!buildTermPattern(candidate)) return { scanned: 0, hits: 0, samples: [] };
+
+  const conditions: SQL[] = [];
+  if (input.channelUuid) conditions.push(eq(messages.channelUuid, input.channelUuid));
+
+  const rows = await db
+    .select({
+      messageId: messages.messageId,
+      channelUuid: messages.channelUuid,
+      channelName: messages.channelName,
+      userName: messages.userName,
+      displayName: messages.displayName,
+      content: messages.content,
+      receivedAt: messages.receivedAt,
+    })
+    .from(messages)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(messages.id))
+    .limit(PREVIEW_SCAN_LIMIT);
+
+  let hits = 0;
+  const samples: WatchTermPreviewHit[] = [];
+
+  for (const row of rows) {
+    const matches = findMatches(row.content, [candidate], row.channelUuid);
+    if (matches.length === 0) continue;
+
+    hits++;
+    if (samples.length < PREVIEW_SAMPLES) {
+      const { channelUuid: _unused, ...rest } = row;
+      samples.push({ ...rest, matches });
+    }
+  }
+
+  return { scanned: rows.length, hits, samples };
 }
