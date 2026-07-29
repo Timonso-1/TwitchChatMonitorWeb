@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, MessageSquare, MessagesSquare } from "lucide-react";
+import { MessageSquare, MessagesSquare } from "lucide-react";
+import { ExportButton } from "@/components/export-button";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ChatName } from "@/components/chat-name";
@@ -9,7 +10,6 @@ import { MessageCell } from "@/components/message-cell";
 import { ChatBadges } from "@/components/chat-badges";
 import { ViewerAvatar } from "@/components/viewer-avatar";
 import { PanelSurface } from "@/components/panel-surface";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
@@ -85,15 +85,10 @@ export default async function MessagesPage({
         description="Durchsuche den aufgezeichneten Chatverlauf aller Channels."
         actions={
           canExport ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link
-                href={`/messages/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
-                prefetch={false}
-              >
-                <Download />
-                CSV-Export
-              </Link>
-            </Button>
+            <ExportButton
+              href={`/messages/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
+              total={total}
+            />
           ) : undefined
         }
       />

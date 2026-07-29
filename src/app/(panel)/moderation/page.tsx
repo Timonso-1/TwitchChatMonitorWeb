@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, Gavel, ShieldAlert } from "lucide-react";
+import { Gavel, ShieldAlert } from "lucide-react";
+import { ExportButton } from "@/components/export-button";
 import { PageHeader } from "@/components/page-header";
 import { FilterBar, FilterField } from "@/components/filter-bar";
 import { ListTrendHeader } from "@/components/list-trend-header";
@@ -11,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import { resolveChannelFilter } from "@/lib/channel-filter";
@@ -72,15 +72,10 @@ export default async function ModerationPage({
         description="Banns, Timeouts, gelöschte Nachrichten und weitere Moderationsaktionen."
         actions={
           canExport ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link
-                href={`/moderation/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
-                prefetch={false}
-              >
-                <Download />
-                CSV-Export
-              </Link>
-            </Button>
+            <ExportButton
+              href={`/moderation/export${buildQueryString({ ...activeFilters, from: range.fromDate, to: range.toDate })}`}
+              total={total}
+            />
           ) : undefined
         }
       />

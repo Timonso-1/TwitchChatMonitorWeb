@@ -46,6 +46,8 @@ export interface ViewerProfileModeration {
   targetUserName: string | null;
   durationSeconds: number | null;
   reason: string | null;
+  /** Kennung der geloeschten Nachricht – identisch mit `messages.message_id`. */
+  deletedMessageId: string | null;
   deletedMessageContent: string | null;
   occurredAt: Date;
 }
@@ -247,6 +249,7 @@ export async function getViewerProfile(
         targetUserName: moderationActions.targetUserName,
         durationSeconds: moderationActions.durationSeconds,
         reason: moderationActions.reason,
+        deletedMessageId: moderationActions.deletedMessageId,
         deletedMessageContent: moderationActions.deletedMessageContent,
         occurredAt: moderationActions.occurredAt,
       })
@@ -459,6 +462,7 @@ export async function getViewerModerationPage(
         targetUserName: moderationActions.targetUserName,
         durationSeconds: moderationActions.durationSeconds,
         reason: moderationActions.reason,
+        deletedMessageId: moderationActions.deletedMessageId,
         deletedMessageContent: moderationActions.deletedMessageContent,
         occurredAt: moderationActions.occurredAt,
       })

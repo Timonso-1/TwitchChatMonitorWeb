@@ -11,7 +11,14 @@ import { ViewerAvatar } from "@/components/viewer-avatar";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { toBadgeSet, type MessageDetailPayload } from "@/lib/message-detail";
+import {
+  SURROUNDING_DEFAULT,
+  SURROUNDING_MAX,
+  sliceSurrounding,
+  toBadgeSet,
+  type MessageDetailPayload,
+  type SurroundingMessage,
+} from "@/lib/message-detail";
 import { chatColorPair } from "@/lib/twitch";
 import { cn, formatDateTime } from "@/lib/utils";
 import { severityStyle } from "@/lib/watchlist";
@@ -149,6 +156,8 @@ export function MessageDetailDialog({
               <Conversation entries={detail.conversation} currentId={message.messageId} />
             )}
 
+            <Surroundings surrounding={detail.surrounding} message={message} />
+
             <TechnicalIds
               messageId={message.messageId}
               userId={message.userId}
@@ -270,6 +279,139 @@ function Conversation({
         })}
       </ol>
     </div>
+  );
+}
+
+const SURROUNDING_STORAGE_KEY = "twitch-panel:umgebung-groesse";
+
+/**
+ * Wie viele Nachrichten die Umgebung je Richtung zeigt.
+ *
+ * Wird gemerkt, damit die Einstellung nicht bei jedem Dialog neu gesetzt werden
+ * muss. Gelesen wird erst nach dem Mounten: beim Serverrendern gibt es kein
+ * localStorage, und ein abweichender Startwert würde die Hydration brechen.
+ */
+function useSurroundingSize(): [number, (value: number) => void] {
+  const [size, setSize] = React.useState(SURROUNDING_DEFAULT);
+
+  React.useEffect(() => {
+    const raw = window.localStorage.getItem(SURROUNDING_STORAGE_KEY);
+    // Auf null pruefen statt auf Number(raw): Number(null) ist 0, und 0 ist ein
+    // gueltiger Wert – ein fehlender Eintrag saehe sonst aus wie "keine Umgebung".
+    if (raw === null) return;
+
+    const stored = Number(raw);
+    if (Number.isInteger(stored) && stored >= 0 && stored <= SURROUNDING_MAX) setSize(stored);
+  }, []);
+
+  const update = React.useCallback((value: number) => {
+    setSize(value);
+    window.localStorage.setItem(SURROUNDING_STORAGE_KEY, String(value));
+  }, []);
+
+  return [size, update];
+}
+
+/**
+ * Der Chatverlauf um die Nachricht herum, aus demselben Channel.
+ *
+ * Der Server liefert immer SURROUNDING_MAX je Richtung; der Regler schneidet
+ * hier zu. Deshalb reagiert er sofort und loest keine weitere Abfrage aus.
+ */
+function Surroundings({
+  surrounding,
+  message,
+}: {
+  surrounding: MessageDetailPayload["surrounding"];
+  message: MessageDetailPayload["message"];
+}) {
+  const [size, setSize] = useSurroundingSize();
+  const { before, after, atStart, atEnd } = sliceSurrounding(surrounding, size);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <SectionLabel>
+          <span className="inline-flex items-center gap-1.5">
+            <MessagesSquare className="size-3" />
+            Umgebung im Channel
+          </span>
+        </SectionLabel>
+
+        <label className="flex items-center gap-2 text-[0.6875rem] text-[var(--color-muted-foreground)]">
+          <span className="whitespace-nowrap tabular-nums">
+            {size} davor &amp; danach
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={SURROUNDING_MAX}
+            value={size}
+            onChange={(event) => setSize(Number(event.target.value))}
+            className="h-1 w-28 cursor-pointer appearance-none rounded-full bg-[var(--color-border-strong)] accent-[var(--color-primary)]"
+            aria-label="Anzahl der Nachrichten davor und danach"
+          />
+        </label>
+      </div>
+
+      {size === 0 ? (
+        <p className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-2 text-xs text-[var(--color-muted-foreground)]">
+          Regler erhöhen, um den Chatverlauf um diese Nachricht zu sehen.
+        </p>
+      ) : (
+        <ol className="space-y-px overflow-hidden rounded-lg border border-[var(--color-border)]">
+          {atStart && <Boundary text="Anfang des aufgezeichneten Verlaufs" />}
+
+          {before.map((entry) => (
+            <SurroundingRow key={entry.messageId} entry={entry} />
+          ))}
+
+          <li className="bg-[color-mix(in_srgb,var(--color-brand)_10%,transparent)] px-3 py-2 text-sm">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <ChatName color={message.color} className="text-xs font-medium">
+                {message.displayName ?? message.userName}
+              </ChatName>
+              <Badge variant="primary">Diese Nachricht</Badge>
+              <span className="ml-auto text-[0.6875rem] text-[var(--color-subtle)]">
+                {formatDateTime(message.receivedAt)}
+              </span>
+            </div>
+            <p className="mt-1 break-words">{message.content}</p>
+          </li>
+
+          {after.map((entry) => (
+            <SurroundingRow key={entry.messageId} entry={entry} />
+          ))}
+
+          {atEnd && <Boundary text="Ende des aufgezeichneten Verlaufs" />}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+function Boundary({ text }: { text: string }) {
+  return (
+    <li className="bg-[var(--color-surface)] px-3 py-1.5 text-center text-[0.6875rem] text-[var(--color-subtle)]">
+      {text}
+    </li>
+  );
+}
+
+function SurroundingRow({ entry }: { entry: SurroundingMessage }) {
+  return (
+    <li className="bg-[var(--color-surface)] px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <ChatName color={entry.color} className="text-xs font-medium">
+          {entry.displayName ?? entry.userName}
+        </ChatName>
+        {entry.deleted && <Badge variant="destructive">Gelöscht</Badge>}
+        <span className="ml-auto text-[0.6875rem] text-[var(--color-subtle)]">
+          {formatDateTime(entry.receivedAt)}
+        </span>
+      </div>
+      <p className={cn("mt-1 break-words", entry.deleted && "line-through opacity-60")}>{entry.content}</p>
+    </li>
   );
 }
 

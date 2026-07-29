@@ -16,7 +16,7 @@ import {
   viewers,
 } from "@/lib/db/schema";
 import { hasPermission } from "@/lib/auth/permissions";
-import { NAVIGATION, type NavCountKey, type NavCounts } from "@/lib/navigation";
+import { NAVIGATION, type NavCountKey, type NavCountPromises } from "@/lib/navigation";
 
 /**
  * Zähler für die Badges in der Seitenleiste.
@@ -74,23 +74,30 @@ function visibleKeys(permissions: string[]): NavCountKey[] {
 }
 
 /**
- * Liefert die Zahlen für alle Navigationseinträge, die der Nutzer sehen darf.
+ * Startet die Abfragen für alle Navigationseinträge, die der Nutzer sehen darf,
+ * und gibt sie einzeln als Promise zurück.
  *
- * Wirft nie: Ein Datenbankproblem darf nicht die gesamte Seitenleiste und damit
- * das Panel unbrauchbar machen. Ein fehlgeschlagener Zähler fehlt im Ergebnis,
+ * Bewusst ein Promise je Zähler und nicht ein gemeinsames `Promise.all`: Sonst
+ * warten alle Badges auf den langsamsten, und ein hängender Zähler lässt die
+ * gesamte Leiste ohne Zahlen. So rückt jede Zahl nach, sobald ihre eigene
+ * Abfrage zurück ist.
+ *
+ * Die Funktion ist absichtlich nicht `async` – sie kehrt sofort zurück, während
+ * die Abfragen bereits laufen.
+ *
+ * Wirft nie: Ein Datenbankproblem darf nicht die Seitenleiste und damit das
+ * Panel unbrauchbar machen. Ein fehlgeschlagener Zähler liefert `undefined`,
  * das Badge entfällt dann einfach.
  */
-export async function getNavCounts(permissions: string[]): Promise<NavCounts> {
-  const entries = await Promise.all(
-    visibleKeys(permissions).map(async (key) => {
-      try {
-        return [key, await LOADERS[key]()] as const;
-      } catch (error) {
-        console.error(`[nav-counts] Zähler "${key}" fehlgeschlagen:`, error);
-        return [key, undefined] as const;
-      }
-    }),
-  );
+export function getNavCounts(permissions: string[]): NavCountPromises {
+  const promises: NavCountPromises = {};
 
-  return Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+  for (const key of visibleKeys(permissions)) {
+    promises[key] = LOADERS[key]().catch((error) => {
+      console.error(`[nav-counts] Zähler "${key}" fehlgeschlagen:`, error);
+      return undefined;
+    });
+  }
+
+  return promises;
 }

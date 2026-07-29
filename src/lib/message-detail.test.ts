@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toBadgeSet } from "./message-detail";
+import { sliceSurrounding, toBadgeSet, type SurroundingMessage } from "./message-detail";
 
 describe("toBadgeSet", () => {
   it("liefert für ein leeres Record eine leere Map", () => {
@@ -42,5 +42,63 @@ describe("toBadgeSet", () => {
     for (const versions of set.values()) {
       expect(versions).toBeInstanceOf(Map);
     }
+  });
+});
+
+describe("sliceSurrounding", () => {
+  const entry = (id: number): SurroundingMessage => ({
+    id,
+    messageId: `m${id}`,
+    userId: "u",
+    userName: "user",
+    displayName: null,
+    color: null,
+    content: `Nachricht ${id}`,
+    receivedAt: "2026-07-29T10:00:00.000Z",
+    deleted: false,
+  });
+
+  const full = {
+    before: [entry(1), entry(2), entry(3), entry(4), entry(5)],
+    after: [entry(7), entry(8), entry(9), entry(10), entry(11)],
+  };
+
+  it("liefert bei 0 nichts und meldet keine Grenze", () => {
+    const result = sliceSurrounding(full, 0);
+
+    expect(result.before).toEqual([]);
+    expect(result.after).toEqual([]);
+    expect(result.atStart).toBe(false);
+    expect(result.atEnd).toBe(false);
+  });
+
+  it("nimmt die naechstgelegenen Nachrichten, nicht die aeltesten", () => {
+    const result = sliceSurrounding(full, 2);
+
+    expect(result.before.map((row) => row.id)).toEqual([4, 5]);
+    expect(result.after.map((row) => row.id)).toEqual([7, 8]);
+  });
+
+  it("liefert alle vorhandenen, wenn weniger da sind als gewuenscht", () => {
+    const kurz = { before: [entry(1), entry(2), entry(3)], after: [entry(7)] };
+    const result = sliceSurrounding(kurz, 5);
+
+    // Ohne Abfangen des negativen Index kaemen hier nur die letzten beiden.
+    expect(result.before.map((row) => row.id)).toEqual([1, 2, 3]);
+    expect(result.after.map((row) => row.id)).toEqual([7]);
+  });
+
+  it("meldet die Grenzen, wenn weniger vorliegen als gewuenscht", () => {
+    const result = sliceSurrounding({ before: [entry(1)], after: [] }, 5);
+
+    expect(result.atStart).toBe(true);
+    expect(result.atEnd).toBe(true);
+  });
+
+  it("meldet keine Grenze, wenn genau so viele vorliegen wie gewuenscht", () => {
+    const result = sliceSurrounding(full, 5);
+
+    expect(result.atStart).toBe(false);
+    expect(result.atEnd).toBe(false);
   });
 });

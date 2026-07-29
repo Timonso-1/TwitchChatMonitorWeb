@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { ArrowUpRight, Trash2 } from "lucide-react";
 import { DetailButton } from "@/components/detail-trigger";
+import { MessageDetailDialog } from "@/components/message-detail-dialog";
 import { ModerationBadge } from "@/components/twitch-badges";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ModerationListItem } from "@/lib/queries/twitch";
@@ -20,10 +21,13 @@ export function ModerationDetailDialog({
   entry,
   open,
   onOpenChange,
+  onShowMessage,
 }: {
   entry: ModerationListItem;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Wechselt zur gelöschten Nachricht; fehlt, wenn keine hinterlegt ist. */
+  onShowMessage?: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,10 +62,26 @@ export function ModerationDetailDialog({
 
         {entry.deletedMessageContent && (
           <div className="space-y-2">
-            <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-[var(--color-subtle)]">
-              <Trash2 className="size-3" />
-              Gelöschte Nachricht
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+              <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-[var(--color-subtle)]">
+                <Trash2 className="size-3" />
+                Gelöschte Nachricht
+              </p>
+
+              {/* Die Kennung der Löschung ist die messageId – damit laesst sich
+                  der Nachrichten-Dialog samt Chatverlauf drumherum oeffnen. */}
+              {onShowMessage && (
+                <button
+                  type="button"
+                  onClick={onShowMessage}
+                  className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+                >
+                  Im Chatverlauf ansehen
+                  <ArrowUpRight className="size-3" />
+                </button>
+              )}
+            </div>
+
             <p className="whitespace-pre-wrap break-words rounded-lg border border-[color-mix(in_srgb,var(--color-destructive)_30%,transparent)] bg-[color-mix(in_srgb,var(--color-destructive)_8%,transparent)] p-4 text-[0.9375rem] leading-relaxed">
               {entry.deletedMessageContent}
             </p>
@@ -81,11 +101,35 @@ export function ModerationDetailDialog({
  */
 export function ModerationDetailButton({ entry }: { entry: ModerationListItem }) {
   const [open, setOpen] = React.useState(false);
+  const [messageOpen, setMessageOpen] = React.useState(false);
+
+  const deletedMessageId = entry.deletedMessageId;
 
   return (
     <>
       <DetailButton label="Details zur Moderationsaktion anzeigen" onOpen={() => setOpen(true)} />
-      {open && <ModerationDetailDialog entry={entry} open={open} onOpenChange={setOpen} />}
+
+      {open && (
+        <ModerationDetailDialog
+          entry={entry}
+          open={open}
+          onOpenChange={setOpen}
+          // Nacheinander statt uebereinander: zwei offene Dialoge wuerden sich
+          // den Fokus streitig machen und die Escape-Taste mehrdeutig machen.
+          onShowMessage={
+            deletedMessageId
+              ? () => {
+                  setOpen(false);
+                  setMessageOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {messageOpen && deletedMessageId && (
+        <MessageDetailDialog messageId={deletedMessageId} open={messageOpen} onOpenChange={setMessageOpen} />
+      )}
     </>
   );
 }

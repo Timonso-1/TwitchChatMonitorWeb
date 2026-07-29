@@ -3,12 +3,10 @@ import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 import { AuthorizationError, assertPermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { resolveChannelFilter } from "@/lib/channel-filter";
-import { buildCsv, csvHeaders } from "@/lib/csv";
+import { EXPORT_LIMIT, buildCsv, csvHeaders } from "@/lib/csv";
 import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { listModerationActions } from "@/lib/queries/twitch";
 import { formatDuration, moderationActionLabel } from "@/lib/twitch";
-
-const EXPORT_LIMIT = 10_000;
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +50,7 @@ export async function GET(request: NextRequest) {
       metadata: { rows: items.length, filters, truncated: items.length >= EXPORT_LIMIT },
     });
 
-    return new NextResponse(csv, { headers: csvHeaders("moderation") });
+    return new NextResponse(csv, { headers: csvHeaders("moderation", items.length >= EXPORT_LIMIT) });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return NextResponse.json({ error: error.message }, { status: 403 });
