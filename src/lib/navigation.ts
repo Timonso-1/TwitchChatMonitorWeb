@@ -24,6 +24,15 @@ export type NavCountKey =
 /** Fehlt ein Schlüssel, ist die Abfrage fehlgeschlagen oder nicht erlaubt. */
 export type NavCounts = Partial<Record<NavCountKey, number>>;
 
+/**
+ * Ein Promise je Zähler statt eines gemeinsamen.
+ *
+ * Nur so wirken die Suspense-Grenzen pro Badge: jedes Badge wartet ausschliesslich
+ * auf seine eigene Abfrage. Ein gemeinsames Promise würde alle Badges an den
+ * langsamsten Zähler koppeln.
+ */
+export type NavCountPromises = Partial<Record<NavCountKey, Promise<number | undefined>>>;
+
 export interface NavItem {
   href: string;
   label: string;

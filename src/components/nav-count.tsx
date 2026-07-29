@@ -2,19 +2,22 @@
 
 import { use } from "react";
 import { Badge } from "@/components/ui/badge";
-import type { NavCountKey, NavCounts } from "@/lib/navigation";
 import { cn, formatNavCount, formatNumber } from "@/lib/utils";
 
 interface NavCountProps {
-  /** Wird bewusst als Promise gereicht und hier aufgelöst, damit die
-   *  Navigation sofort rendert und nicht auf den teuren COUNT(*) wartet. */
-  promise: Promise<NavCounts>;
-  countKey: NavCountKey;
+  /**
+   * Das Promise genau dieses Zählers – nicht eines für alle.
+   *
+   * Dadurch wartet die Suspense-Grenze um dieses Badge nur auf die eigene
+   * Abfrage. Ein gemeinsames Promise würde jede Zahl an den langsamsten Zähler
+   * koppeln und die Grenzen wirkungslos machen.
+   */
+  promise?: Promise<number | undefined>;
   active: boolean;
 }
 
-export function NavCount({ promise, countKey, active }: NavCountProps) {
-  const value = use(promise)[countKey];
+export function NavCount({ promise, active }: NavCountProps) {
+  const value = promise ? use(promise) : undefined;
 
   // Fehlt der Wert, ist die Abfrage fehlgeschlagen – dann lieber nichts zeigen
   // als eine falsche Null. Eine echte Null wird ebenfalls ausgeblendet: Ein
