@@ -14,7 +14,8 @@ import type { LiveAvatar, LiveChatPayload, LiveMessage, LiveReplyTarget } from "
 const MAX_DELETIONS = 200;
 
 export interface LiveChatQuery {
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   /** Cursor auf messages.id; 0 lädt den aktuellen Verlauf. */
   afterId: number;
   /** Cursor auf moderation_actions.id; 0 bedeutet Erstabruf. */
@@ -31,7 +32,7 @@ export interface LiveChatQuery {
  */
 export async function loadLiveChat(query: LiveChatQuery): Promise<LiveChatPayload> {
   const conditions: SQL[] = [];
-  if (query.channelUuid) conditions.push(eq(messages.channelUuid, query.channelUuid));
+  if (query.channelUuids?.length) conditions.push(inArray(messages.channelUuid, query.channelUuids));
   if (Number.isFinite(query.afterId) && query.afterId > 0) conditions.push(gt(messages.id, query.afterId));
 
   const rows = await db

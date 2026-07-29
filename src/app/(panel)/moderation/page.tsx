@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
-import { listChannelOptions } from "@/lib/queries/channels";
+import { resolveChannelFilter } from "@/lib/channel-filter";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { listModerationActionTypes, listModerationActions } from "@/lib/queries/twitch";
 import { getModerationTrend } from "@/lib/queries/trends";
 import { TREND_PRESETS, rangeParams, resolveRange } from "@/lib/range";
@@ -34,17 +35,21 @@ export default async function ModerationPage({
   const session = await requirePermission(PERMISSIONS.MODERATION_VIEW);
   const params = await searchParams;
 
-  const channelUuid = parseSearchParam(params.channel);
+  const channelParam = parseSearchParam(params.channel);
   const action = parseSearchParam(params.action);
   const target = parseSearchParam(params.target);
   const page = parsePositiveInt(params.page, 1);
   const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
-  const [channels, actionTypes, { items, total }, trend] = await Promise.all([
-    listChannelOptions(),
+  // Die Optionen müssen vor der Datenabfrage stehen: sie lösen die Twitch-ID aus
+  // dem Parameter zu den UUIDs auf, über die gefiltert wird.
+  const channels = await listChannelFilterOptions("moderation_actions");
+  const channelFilter = resolveChannelFilter(channels, channelParam);
+
+  const [actionTypes, { items, total }, trend] = await Promise.all([
     listModerationActionTypes(),
     listModerationActions({
-      channelUuid,
+      channelUuids: channelFilter.uuids,
       action,
       target,
       from: range.fromDate,
@@ -56,7 +61,7 @@ export default async function ModerationPage({
   ]);
 
   const label = range.label;
-  const activeFilters = { channel: channelUuid, action, target };
+  const activeFilters = { channel: channelFilter.value, action, target };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
   const canExport = hasPermission(session.user.permissions, PERMISSIONS.MODERATION_EXPORT);
 
@@ -103,11 +108,11 @@ export default async function ModerationPage({
 
       <FilterBar action="/moderation" hasActiveFilters={hasActiveFilters}>
         <FilterField label="Channel">
-          <Select name="channel" defaultValue={channelUuid ?? ""}>
+          <Select name="channel" defaultValue={channelFilter.value ?? ""}>
             <option value="">Alle Channels</option>
             {channels.map((channel) => (
-              <option key={channel.uuid} value={channel.uuid}>
-                {channel.name}
+              <option key={channel.twitchId} value={channel.twitchId}>
+                {channel.label}
               </option>
             ))}
           </Select>

@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 import { AuthorizationError, assertPermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { resolveChannelFilter } from "@/lib/channel-filter";
 import { buildCsv, csvHeaders } from "@/lib/csv";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { listEvents } from "@/lib/queries/twitch";
 import { eventTypeLabel, subTierLabel } from "@/lib/twitch";
 
@@ -13,8 +15,13 @@ export async function GET(request: NextRequest) {
     const session = await assertPermission(PERMISSIONS.EVENTS_EXPORT);
     const params = request.nextUrl.searchParams;
 
+    // Der Link der Eventliste trägt die Twitch-ID; sie muss wie dort zu den UUIDs
+    // aufgelöst werden, sonst exportiert der Filter stillschweigend alles.
+    const channels = await listChannelFilterOptions("events");
+    const channelFilter = resolveChannelFilter(channels, params.get("channel") ?? undefined);
+
     const filters = {
-      channelUuid: params.get("channel") ?? undefined,
+      channelUuids: channelFilter.uuids,
       eventType: params.get("type") ?? undefined,
       user: params.get("user") ?? undefined,
       from: params.get("from") ?? undefined,

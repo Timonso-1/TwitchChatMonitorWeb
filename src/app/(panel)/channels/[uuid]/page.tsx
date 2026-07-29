@@ -253,7 +253,7 @@ export default async function ChannelDetailPage({
             <div className="flex flex-wrap gap-2">
               {hasPermission(permissions, PERMISSIONS.CHAT_LIVE) && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/live?channel=${channel.uuid}`}>
+                  <Link href={`/live?channel=${channel.broadcasterId}`}>
                     <Radar />
                     Live-Chat
                   </Link>
@@ -261,7 +261,7 @@ export default async function ChannelDetailPage({
               )}
               {canSeeMessages && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/messages?channel=${channel.uuid}`}>
+                  <Link href={`/messages?channel=${channel.broadcasterId}`}>
                     <MessageSquare />
                     Nachrichten
                   </Link>
@@ -269,7 +269,7 @@ export default async function ChannelDetailPage({
               )}
               {canSeeEvents && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/events?channel=${channel.uuid}`}>
+                  <Link href={`/events?channel=${channel.broadcasterId}`}>
                     <Zap />
                     Events
                   </Link>
@@ -277,7 +277,7 @@ export default async function ChannelDetailPage({
               )}
               {canSeeModeration && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/moderation?channel=${channel.uuid}`}>
+                  <Link href={`/moderation?channel=${channel.broadcasterId}`}>
                     <ShieldAlert />
                     Moderation
                   </Link>

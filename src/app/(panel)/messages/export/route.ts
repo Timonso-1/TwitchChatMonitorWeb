@@ -3,7 +3,9 @@ import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 
 import { AuthorizationError, assertPermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { resolveChannelFilter } from "@/lib/channel-filter";
 import { buildCsv, csvHeaders } from "@/lib/csv";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { exportMessages } from "@/lib/queries/twitch";
 
 const EXPORT_LIMIT = 10_000;
@@ -13,8 +15,13 @@ export async function GET(request: NextRequest) {
     const session = await assertPermission(PERMISSIONS.MESSAGES_EXPORT);
     const params = request.nextUrl.searchParams;
 
+    // Der Link der Nachrichtenliste trägt die Twitch-ID; sie muss wie dort zu den
+    // UUIDs aufgelöst werden, sonst exportiert der Filter stillschweigend alles.
+    const channels = await listChannelFilterOptions("messages");
+    const channelFilter = resolveChannelFilter(channels, params.get("channel") ?? undefined);
+
     const filters = {
-      channelUuid: params.get("channel") ?? undefined,
+      channelUuids: channelFilter.uuids,
       user: params.get("user") ?? undefined,
       content: params.get("content") ?? undefined,
       role: (params.get("role") ?? "all") as "all" | "mod" | "subscriber" | "vip" | "broadcaster" | "first",

@@ -25,8 +25,16 @@ export async function GET(request: NextRequest) {
 
     const params = request.nextUrl.searchParams;
 
+    // Der Client schickt die bereits aufgelösten UUIDs kommagetrennt. Die
+    // Auflösung der Twitch-ID passiert einmal beim Seitenaufbau, damit nicht
+    // jeder Poll zwei zusätzliche Abfragen auslöst.
+    const channelUuids = (params.get("channel") ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
     const payload = await loadLiveChat({
-      channelUuid: params.get("channel") ?? undefined,
+      channelUuids,
       afterId: positiveNumber(params.get("after"), 0),
       modAfter: positiveNumber(params.get("modAfter"), 0),
       limit: Math.min(positiveNumber(params.get("limit"), DEFAULT_BATCH), MAX_BATCH),

@@ -14,7 +14,8 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { listChannelOptions } from "@/lib/queries/channels";
+import { resolveChannelFilter } from "@/lib/channel-filter";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { countMessagesForScope, getEmoteStats, getEmoteTimeline } from "@/lib/queries/emotes";
 import { TREND_PRESETS, rangeParams, rangeSentence, resolveRange } from "@/lib/range";
 import { emoteImageUrl } from "@/lib/twitch-tags";
@@ -31,14 +32,19 @@ export default async function EmotesPage({
   await requirePermission(PERMISSIONS.MESSAGES_VIEW);
   const params = await searchParams;
 
-  const channelUuid = parseSearchParam(params.channel);
+  const channelParam = parseSearchParam(params.channel);
   const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
-  const [channels, stats, timeline, totalMessages] = await Promise.all([
-    listChannelOptions(),
-    getEmoteStats({ channelUuid, range, limit: 60 }),
-    getEmoteTimeline({ channelUuid }, range),
-    countMessagesForScope({ channelUuid, range }),
+  // Die Optionen müssen vor der Datenabfrage stehen: sie lösen die Twitch-ID aus
+  // dem Parameter zu den UUIDs auf, über die gefiltert wird.
+  const channels = await listChannelFilterOptions("messages");
+  const channelFilter = resolveChannelFilter(channels, channelParam);
+  const channelUuids = channelFilter.uuids;
+
+  const [stats, timeline, totalMessages] = await Promise.all([
+    getEmoteStats({ channelUuids, range, limit: 60 }),
+    getEmoteTimeline({ channelUuids }, range),
+    countMessagesForScope({ channelUuids, range }),
   ]);
 
   const share = totalMessages > 0 ? Math.round((stats.scanned / totalMessages) * 100) : 0;
@@ -51,20 +57,20 @@ export default async function EmotesPage({
         actions={
           <RangeSelector
             basePath="/emotes"
-            params={{ channel: channelUuid }}
+            params={{ channel: channelFilter.value }}
             presets={TREND_PRESETS}
             range={range}
           />
         }
       />
 
-      <FilterBar action="/emotes" hasActiveFilters={Boolean(channelUuid)}>
+      <FilterBar action="/emotes" hasActiveFilters={Boolean(channelFilter.value)}>
         <FilterField label="Channel">
-          <Select name="channel" defaultValue={channelUuid ?? ""}>
+          <Select name="channel" defaultValue={channelFilter.value ?? ""}>
             <option value="">Alle Channels</option>
             {channels.map((channel) => (
-              <option key={channel.uuid} value={channel.uuid}>
-                {channel.name}
+              <option key={channel.twitchId} value={channel.twitchId}>
+                {channel.label}
               </option>
             ))}
           </Select>

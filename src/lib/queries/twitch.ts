@@ -16,7 +16,8 @@ function parseDate(value: string | undefined, endOfDay = false): Date | undefine
 // ---------------------------------------------------------------------------
 
 export interface MessageFilters {
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   user?: string;
   content?: string;
   /** Rolle oder Abzeichen – siehe MESSAGE_ROLE_FILTERS. */
@@ -56,7 +57,7 @@ export interface MessageListItem {
 function buildMessageConditions(filters: MessageFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
-  if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(messages.channelUuid, filters.channelUuids));
 
   if (filters.user) {
     const pattern = `%${filters.user}%`;
@@ -309,7 +310,8 @@ export async function exportMessages(filters: Omit<MessageFilters, "page" | "pag
 // ---------------------------------------------------------------------------
 
 export interface EventFilters {
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   eventType?: string;
   user?: string;
   from?: string;
@@ -336,7 +338,7 @@ export interface EventListItem {
 export async function listEvents(filters: EventFilters): Promise<{ items: EventListItem[]; total: number }> {
   const conditions: SQL[] = [];
 
-  if (filters.channelUuid) conditions.push(eq(events.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(events.channelUuid, filters.channelUuids));
   if (filters.eventType) conditions.push(eq(events.eventType, filters.eventType));
   if (filters.user) conditions.push(like(events.userName, `%${filters.user}%`));
 
@@ -388,7 +390,8 @@ export async function listEventTypes(): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 export interface ModerationFilters {
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   action?: string;
   target?: string;
   from?: string;
@@ -415,7 +418,7 @@ export async function listModerationActions(filters: ModerationFilters): Promise
 }> {
   const conditions: SQL[] = [];
 
-  if (filters.channelUuid) conditions.push(eq(moderationActions.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(moderationActions.channelUuid, filters.channelUuids));
   if (filters.action) conditions.push(eq(moderationActions.action, filters.action));
   if (filters.target) conditions.push(like(moderationActions.targetUserName, `%${filters.target}%`));
 

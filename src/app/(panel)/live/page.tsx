@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { LiveChat } from "./live-chat";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
-import { listChannelOptions } from "@/lib/queries/channels";
+import { resolveChannelFilter } from "@/lib/channel-filter";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { parseSearchParam } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Live-Chat" };
@@ -20,8 +21,11 @@ export default async function LivePage({
   const session = await requirePermission(PERMISSIONS.CHAT_LIVE);
   const params = await searchParams;
 
-  const channels = await listChannelOptions();
-  const initialChannel = parseSearchParam(params.channel);
+  // Wie auf den Listenseiten aus den Daten, damit ein geloeschter Channel
+  // waehlbar bleibt. Der Verlauf beim Erstabruf ist dort weiterhin sichtbar –
+  // neue Nachrichten kommen naturgemaess keine mehr dazu.
+  const channels = await listChannelFilterOptions("messages");
+  const initialChannel = resolveChannelFilter(channels, parseSearchParam(params.channel)).value;
 
   const canManageWatchlist = hasPermission(session.user.permissions, PERMISSIONS.WATCHLIST_VIEW);
 
