@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { adminWatchTerms, messages } from "@/lib/db/schema";
 import { inRange } from "@/lib/queries/range-filter";
@@ -94,7 +94,8 @@ export interface WatchHit {
 export interface WatchHitFilters {
   /** Nur Treffer eines bestimmten Begriffs. */
   termId?: number;
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   /** Nur Treffer ab dieser Stufe. */
   severity?: string;
   /** Zeitraum – ohne Angabe wird der gesamte Bestand durchsucht. */
@@ -121,7 +122,7 @@ export async function findWatchHits(
 
   const termCondition = buildTermCondition(relevant);
   if (termCondition) conditions.push(termCondition);
-  if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(messages.channelUuid, filters.channelUuids));
 
   if (filters.range) conditions.push(inRange(messages.receivedAt, filters.range));
 

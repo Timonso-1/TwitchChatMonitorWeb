@@ -23,6 +23,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ViewerTabsNav, normalizeViewerTab, type ViewerTabKey } from "./viewer-tabs";
+import { resolveChannelFilter } from "@/lib/channel-filter";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
 import {
@@ -92,8 +93,13 @@ export default async function ViewerProfilePage({
   const filterTo = parseSearchParam(query.to);
   const filterBits = parseSearchParam(query.bits) === "1";
 
+  // Die Optionen müssen vor der Datenabfrage stehen: sie lösen die Twitch-ID aus
+  // dem Parameter zu den UUIDs auf, über die gefiltert wird.
+  const messageChannels = tab === "messages" && canSeeMessages ? await getViewerChannelOptions(userId) : [];
+  const channelFilter = resolveChannelFilter(messageChannels, filterChannel);
+
   const messageFilters = {
-    channelUuid: filterChannel,
+    channelUuids: channelFilter.uuids,
     content: filterContent,
     from: filterFrom,
     to: filterTo,
@@ -103,14 +109,14 @@ export default async function ViewerProfilePage({
   // Bleibt beim Blättern und Filtern erhalten.
   const messageParams = {
     tab: "messages",
-    channel: filterChannel,
+    channel: channelFilter.value,
     content: filterContent,
     from: filterFrom,
     to: filterTo,
     bits: filterBits ? "1" : undefined,
   };
 
-  const hasMessageFilters = Boolean(filterChannel || filterContent || filterFrom || filterTo || filterBits);
+  const hasMessageFilters = Boolean(channelFilter.value || filterContent || filterFrom || filterTo || filterBits);
 
   const [profile, avatar] = await Promise.all([
     getViewerProfile(userId, { includeNotes: canViewNotes, skipDetailLists: true }),
@@ -129,13 +135,10 @@ export default async function ViewerProfilePage({
         ])
       : [[], [], []];
 
-  const [messagesPage, messageChannels] =
+  const messagesPage =
     tab === "messages" && canSeeMessages
-      ? await Promise.all([
-          getViewerMessagesPage(userId, page, DETAIL_PAGE_SIZE, messageFilters),
-          getViewerChannelOptions(userId),
-        ])
-      : [null, []];
+      ? await getViewerMessagesPage(userId, page, DETAIL_PAGE_SIZE, messageFilters)
+      : null;
 
   // Löschungen und Antwortbezüge nur laden, wenn Nachrichten sichtbar sind.
   const messageContext = messagesPage
@@ -418,11 +421,11 @@ export default async function ViewerProfilePage({
             <input type="hidden" name="tab" value="messages" />
 
             <FilterField label="Channel">
-              <Select name="channel" defaultValue={filterChannel ?? ""}>
+              <Select name="channel" defaultValue={channelFilter.value ?? ""}>
                 <option value="">Alle Channels</option>
                 {messageChannels.map((channel) => (
-                  <option key={channel.uuid} value={channel.uuid}>
-                    {channel.name}
+                  <option key={channel.twitchId} value={channel.twitchId}>
+                    {channel.label}
                   </option>
                 ))}
               </Select>

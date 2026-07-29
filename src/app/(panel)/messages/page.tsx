@@ -16,7 +16,8 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
-import { listChannelOptions } from "@/lib/queries/channels";
+import { resolveChannelFilter } from "@/lib/channel-filter";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { getMessageContext, listMessages } from "@/lib/queries/twitch";
 import { getMessageTrend } from "@/lib/queries/trends";
 import { TREND_PRESETS, rangeParams, resolveRange } from "@/lib/range";
@@ -37,17 +38,21 @@ export default async function MessagesPage({
   const session = await requirePermission(PERMISSIONS.MESSAGES_VIEW);
   const params = await searchParams;
 
-  const channelUuid = parseSearchParam(params.channel);
+  const channelParam = parseSearchParam(params.channel);
   const user = parseSearchParam(params.user);
   const content = parseSearchParam(params.content);
   const role = normalizeRoleFilter(params.role);
   const page = parsePositiveInt(params.page, 1);
   const range = resolveRange(params, { presets: TREND_PRESETS, fallbackDays: 30 });
 
-  const [channels, { items, total }, trend] = await Promise.all([
-    listChannelOptions(),
+  // Die Optionen müssen vor der Datenabfrage stehen: sie lösen die Twitch-ID aus
+  // dem Parameter zu den UUIDs auf, über die gefiltert wird.
+  const channels = await listChannelFilterOptions("messages");
+  const channelFilter = resolveChannelFilter(channels, channelParam);
+
+  const [{ items, total }, trend] = await Promise.all([
     listMessages({
-      channelUuid,
+      channelUuids: channelFilter.uuids,
       user,
       content,
       role,
@@ -66,7 +71,7 @@ export default async function MessagesPage({
   ]);
 
   const label = range.label;
-  const activeFilters = { channel: channelUuid, user, content, role: role === "all" ? undefined : role };
+  const activeFilters = { channel: channelFilter.value, user, content, role: role === "all" ? undefined : role };
   const hasActiveFilters = Object.values(activeFilters).some(Boolean);
   const canExport = hasPermission(session.user.permissions, PERMISSIONS.MESSAGES_EXPORT);
 
@@ -115,11 +120,11 @@ export default async function MessagesPage({
 
       <FilterBar action="/messages" hasActiveFilters={hasActiveFilters}>
         <FilterField label="Channel">
-          <Select name="channel" defaultValue={channelUuid ?? ""}>
+          <Select name="channel" defaultValue={channelFilter.value ?? ""}>
             <option value="">Alle Channels</option>
             {channels.map((channel) => (
-              <option key={channel.uuid} value={channel.uuid}>
-                {channel.name}
+              <option key={channel.twitchId} value={channel.twitchId}>
+                {channel.label}
               </option>
             ))}
           </Select>

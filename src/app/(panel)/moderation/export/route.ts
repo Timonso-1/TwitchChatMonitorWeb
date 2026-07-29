@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 import { AuthorizationError, assertPermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { resolveChannelFilter } from "@/lib/channel-filter";
 import { buildCsv, csvHeaders } from "@/lib/csv";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { listModerationActions } from "@/lib/queries/twitch";
 import { formatDuration, moderationActionLabel } from "@/lib/twitch";
 
@@ -13,8 +15,13 @@ export async function GET(request: NextRequest) {
     const session = await assertPermission(PERMISSIONS.MODERATION_EXPORT);
     const params = request.nextUrl.searchParams;
 
+    // Der Link der Moderationsliste trägt die Twitch-ID; sie muss wie dort zu den
+    // UUIDs aufgelöst werden, sonst exportiert der Filter stillschweigend alles.
+    const channels = await listChannelFilterOptions("moderation_actions");
+    const channelFilter = resolveChannelFilter(channels, params.get("channel") ?? undefined);
+
     const filters = {
-      channelUuid: params.get("channel") ?? undefined,
+      channelUuids: channelFilter.uuids,
       action: params.get("action") ?? undefined,
       target: params.get("target") ?? undefined,
       from: params.get("from") ?? undefined,

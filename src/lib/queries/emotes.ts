@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, isNotNull, lte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messages } from "@/lib/db/schema";
 import type { ResolvedRange } from "@/lib/range";
@@ -39,7 +39,8 @@ export interface EmoteScanResult {
 }
 
 interface EmoteScanFilters {
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   userId?: string;
   /** Ohne Zeitraum wird der gesamte Bestand betrachtet. */
   range?: ResolvedRange;
@@ -50,7 +51,7 @@ interface EmoteScanFilters {
 async function scanEmoteMessages(filters: EmoteScanFilters) {
   const conditions = [isNotNull(messages.emotes), ne(messages.emotes, "")];
 
-  if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(messages.channelUuid, filters.channelUuids));
   if (filters.userId) conditions.push(eq(messages.userId, filters.userId));
 
   if (filters.range) {
@@ -233,7 +234,7 @@ export async function getViewerEmoteSummary(userId: string, limit = 8): Promise<
 export async function countMessagesForScope(filters: EmoteScanFilters): Promise<number> {
   const conditions = [];
 
-  if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(messages.channelUuid, filters.channelUuids));
   if (filters.userId) conditions.push(eq(messages.userId, filters.userId));
   if (filters.range) {
     conditions.push(gte(messages.receivedAt, filters.range.start), lte(messages.receivedAt, filters.range.end));

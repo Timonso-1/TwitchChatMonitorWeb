@@ -1,7 +1,8 @@
 import "server-only";
 import { and, count, desc, eq, gt, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { adminViewerNotes, events, messages, moderationActions, viewers } from "@/lib/db/schema";
+import { buildChannelFilterOptions, type ChannelFilterOption } from "@/lib/channel-filter";
+import { adminViewerNotes, channels, events, messages, moderationActions, viewers } from "@/lib/db/schema";
 import { isFounder, subscriberMonths } from "@/lib/twitch-tags";
 
 export interface ViewerProfileNote {
@@ -314,8 +315,8 @@ export interface PagedResult<T> {
 }
 
 export interface ViewerMessageFilters {
-  /** UUID des Channels. */
-  channelUuid?: string;
+  /** UUIDs des gewählten Channels – eine Twitch-ID kann mehrere haben. */
+  channelUuids?: string[];
   /** Volltextsuche im Nachrichteninhalt. */
   content?: string;
   /** Datum im Format YYYY-MM-DD. */
@@ -340,7 +341,7 @@ export async function getViewerMessagesPage(
 ): Promise<PagedResult<ViewerProfileMessage>> {
   const conditions = [eq(messages.userId, userId)];
 
-  if (filters.channelUuid) conditions.push(eq(messages.channelUuid, filters.channelUuid));
+  if (filters.channelUuids?.length) conditions.push(inArray(messages.channelUuid, filters.channelUuids));
   if (filters.content) conditions.push(like(messages.content, `%${filters.content}%`));
   if (filters.withBits) conditions.push(gt(messages.bits, 0));
 
@@ -384,15 +385,28 @@ export async function getViewerMessagesPage(
   return { items, total: totalRow[0]?.value ?? 0 };
 }
 
-/** Channels, in denen dieser Zuschauer geschrieben hat – für das Filter-Dropdown. */
-export async function getViewerChannelOptions(userId: string): Promise<Array<{ uuid: string; name: string }>> {
+/**
+ * Channels, in denen dieser Zuschauer geschrieben hat – für das Filter-Dropdown.
+ *
+ * Anders als die Listenseiten bleibt die Auswahl auf die Channels dieses
+ * Zuschauers beschränkt; die Gruppierung nach Twitch-ID ist dieselbe, damit ein
+ * umbenannter oder neu angelegter Channel nicht doppelt erscheint.
+ */
+export async function getViewerChannelOptions(userId: string): Promise<ChannelFilterOption[]> {
   const rows = await db
-    .selectDistinct({ uuid: messages.channelUuid, name: messages.channelName })
+    .selectDistinct({
+      uuid: messages.channelUuid,
+      twitchId: messages.channelId,
+      name: messages.channelName,
+    })
     .from(messages)
     .where(eq(messages.userId, userId))
-    .orderBy(messages.channelName);
+    .orderBy(desc(messages.channelUuid));
 
-  return rows;
+  const registeredRows = await db.select({ uuid: channels.uuid, name: channels.name }).from(channels);
+  const registered = new Map(registeredRows.map((row) => [row.uuid, row.name]));
+
+  return buildChannelFilterOptions(rows, registered);
 }
 
 /** Events eines Zuschauers, seitenweise. */

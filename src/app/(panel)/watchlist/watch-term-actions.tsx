@@ -21,18 +21,22 @@ interface WatchTermActionsProps {
 }
 
 export function WatchTermActions({ term, channels }: WatchTermActionsProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [toggleState, toggleAction] = useActionState(toggleWatchTermAction, IDLE_STATE);
   const [deleteState, deleteAction] = useActionState(deleteWatchTermAction, IDLE_STATE);
   const router = useRouter();
 
   useEffect(() => {
-    if (toggleState.status === "success" || deleteState.status === "success") router.refresh();
+    if (toggleState.status === "success" || deleteState.status === "success") {
+      setMenuOpen(false);
+      router.refresh();
+    }
   }, [toggleState, deleteState, router]);
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon">
             <MoreHorizontal />
@@ -46,27 +50,29 @@ export function WatchTermActions({ term, channels }: WatchTermActionsProps) {
             Bearbeiten
           </DropdownMenuItem>
 
-          <DropdownMenuItem asChild>
-            <form action={toggleAction} className="w-full">
-              <input type="hidden" name="id" value={term.id} />
+          {/* Form muss aussen bleiben; onSelect preventDefault hält das Menü
+              offen, sonst unmountet Radix die Form vor dem Server-Action-Submit. */}
+          <form action={toggleAction} className="w-full">
+            <input type="hidden" name="id" value={term.id} />
+            <DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
               <button type="submit" className="flex w-full items-center gap-2">
                 {term.active ? <Pause /> : <Play />}
                 {term.active ? "Pausieren" : "Aktivieren"}
               </button>
-            </form>
-          </DropdownMenuItem>
+            </DropdownMenuItem>
+          </form>
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuItem asChild destructive>
-            <form action={deleteAction} className="w-full">
-              <input type="hidden" name="id" value={term.id} />
+          <form action={deleteAction} className="w-full">
+            <input type="hidden" name="id" value={term.id} />
+            <DropdownMenuItem asChild destructive onSelect={(event) => event.preventDefault()}>
               <button type="submit" className="flex w-full items-center gap-2">
                 <Trash2 />
                 Entfernen
               </button>
-            </form>
-          </DropdownMenuItem>
+            </DropdownMenuItem>
+          </form>
         </DropdownMenuContent>
       </DropdownMenu>
 

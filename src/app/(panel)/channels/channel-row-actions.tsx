@@ -40,18 +40,22 @@ interface ChannelRowActionsProps {
 }
 
 export function ChannelRowActions({ channel, canUpdate, canDelete }: ChannelRowActionsProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toggleState, toggleAction] = useActionState(toggleChannelActiveAction, IDLE_STATE);
   const router = useRouter();
 
   useEffect(() => {
-    if (toggleState.status === "success") router.refresh();
+    if (toggleState.status === "success") {
+      setMenuOpen(false);
+      router.refresh();
+    }
   }, [toggleState, router]);
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon">
             <MoreHorizontal />
@@ -67,15 +71,17 @@ export function ChannelRowActions({ channel, canUpdate, canDelete }: ChannelRowA
                 Bearbeiten
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild>
-                <form action={toggleAction} className="w-full">
-                  <input type="hidden" name="uuid" value={channel.uuid} />
+              {/* Form muss aussen bleiben; onSelect preventDefault hält das Menü
+                  offen, sonst unmountet Radix die Form vor dem Server-Action-Submit. */}
+              <form action={toggleAction} className="w-full">
+                <input type="hidden" name="uuid" value={channel.uuid} />
+                <DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
                   <button type="submit" className="flex w-full items-center gap-2">
                     <Power />
                     {channel.active ? "Deaktivieren" : "Aktivieren"}
                   </button>
-                </form>
-              </DropdownMenuItem>
+                </DropdownMenuItem>
+              </form>
             </>
           )}
 

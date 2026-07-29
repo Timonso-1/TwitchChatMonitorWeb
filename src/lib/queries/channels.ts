@@ -1,6 +1,7 @@
 import "server-only";
 import { and, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { buildChannelFilterOptions, type ChannelFilterOption } from "@/lib/channel-filter";
 import { channels, events, messages, moderationActions } from "@/lib/db/schema";
 import { inRange } from "@/lib/queries/range-filter";
 import type { ResolvedRange } from "@/lib/range";
@@ -275,10 +276,75 @@ export interface ChannelOption {
   name: string;
 }
 
-/** Kompakte Channel-Liste für Filter-Dropdowns. */
+/**
+ * Registrierte Channels – für Auswahlfelder, die sich auf den laufenden Betrieb
+ * beziehen (Live-Chat, Zuordnung eines Wortfilter-Begriffs).
+ *
+ * Für Filter über aufgezeichnete Daten stattdessen `listChannelFilterOptions`
+ * verwenden, sonst verschwinden gelöschte Channels aus dem Dropdown.
+ */
 export async function listChannelOptions(): Promise<ChannelOption[]> {
   return db
     .select({ uuid: channels.uuid, name: channels.name })
     .from(channels)
     .orderBy(desc(channels.active), channels.name);
+}
+
+/** Tabelle, aus der eine Seite ihre Channel-Optionen zieht. */
+export type ChannelDataSource = "messages" | "events" | "moderation_actions";
+
+const SOURCE_COLUMNS = {
+  messages: { id: messages.id, uuid: messages.channelUuid, twitchId: messages.channelId, name: messages.channelName },
+  events: { id: events.id, uuid: events.channelUuid, twitchId: events.channelId, name: events.channelName },
+  moderation_actions: {
+    id: moderationActions.id,
+    uuid: moderationActions.channelUuid,
+    twitchId: moderationActions.channelId,
+    name: moderationActions.channelName,
+  },
+} as const;
+
+const SOURCE_TABLES = {
+  messages,
+  events,
+  moderation_actions: moderationActions,
+} as const;
+
+/** `channels.uuid` -> gepflegter Name, zum Erkennen noch vorhandener Channels. */
+async function registeredChannelNames(): Promise<Map<string, string>> {
+  const rows = await db.select({ uuid: channels.uuid, name: channels.name }).from(channels);
+  return new Map(rows.map((row) => [row.uuid, row.name]));
+}
+
+/**
+ * Channels, zu denen in der angegebenen Tabelle Einträge liegen – gruppiert nach
+ * Twitch-ID, inklusive gelöschter Channels.
+ *
+ * Zwei schlanke Abfragen: `MAX(id) GROUP BY channel_uuid` läuft über die
+ * vorhandenen Channel-Indizes (EXPLAIN: "Using index for group-by"), danach
+ * werden nur die so bestimmten jüngsten Zeilen über den Primärschlüssel geholt.
+ * Damit gilt je UUID der aktuellste aufgezeichnete Name.
+ */
+export async function listChannelFilterOptions(source: ChannelDataSource): Promise<ChannelFilterOption[]> {
+  const columns = SOURCE_COLUMNS[source];
+  const table = SOURCE_TABLES[source];
+
+  const latest = await db
+    .select({ latestId: sql<number>`MAX(${columns.id})`.mapWith(Number) })
+    .from(table)
+    .groupBy(columns.uuid);
+
+  const latestIds = latest.map((row) => row.latestId).filter((id) => Number.isFinite(id));
+  if (latestIds.length === 0) return [];
+
+  const [rows, registered] = await Promise.all([
+    db
+      .select({ uuid: columns.uuid, twitchId: columns.twitchId, name: columns.name })
+      .from(table)
+      .where(inArray(columns.id, latestIds))
+      .orderBy(desc(columns.id)),
+    registeredChannelNames(),
+  ]);
+
+  return buildChannelFilterOptions(rows, registered);
 }

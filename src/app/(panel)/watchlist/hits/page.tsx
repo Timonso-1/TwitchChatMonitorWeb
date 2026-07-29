@@ -14,7 +14,8 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { listChannelOptions } from "@/lib/queries/channels";
+import { resolveChannelFilter } from "@/lib/channel-filter";
+import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { findWatchHits, listWatchTerms } from "@/lib/queries/watchlist";
 import { HITS_PRESETS, rangeParams, resolveRange } from "@/lib/range";
 import { TERM_SEVERITIES, severityStyle } from "@/lib/watchlist";
@@ -35,19 +36,22 @@ export default async function WatchHitsPage({
 
   const termParam = parseSearchParam(params.term);
   const termId = termParam ? Number(termParam) : undefined;
-  const channelUuid = parseSearchParam(params.channel);
+  const channelParam = parseSearchParam(params.channel);
   const severity = parseSearchParam(params.severity);
   const range = resolveRange(params, { presets: HITS_PRESETS, fallbackDays: 30 });
   const page = parsePositiveInt(params.page, 1);
 
-  const [allTerms, channels] = await Promise.all([listWatchTerms(), listChannelOptions()]);
+  // Die Optionen müssen vor der Datenabfrage stehen: sie lösen die Twitch-ID aus
+  // dem Parameter zu den UUIDs auf, über die gefiltert wird.
+  const [allTerms, channels] = await Promise.all([listWatchTerms(), listChannelFilterOptions("messages")]);
+  const channelFilter = resolveChannelFilter(channels, channelParam);
 
   // Nur aktive Begriffe werden ausgewertet – pausierte sollen keine Treffer erzeugen.
   const activeTerms = allTerms.filter((term) => term.active);
 
   const { hits, truncated } = await findWatchHits(activeTerms, {
     termId: Number.isFinite(termId) ? termId : undefined,
-    channelUuid,
+    channelUuids: channelFilter.uuids,
     severity,
     // days = 0 heisst "gesamter Zeitraum" – dann ohne Zeitfilter suchen.
     range: range.days === 0 ? undefined : range,
@@ -57,7 +61,7 @@ export default async function WatchHitsPage({
 
   const activeFilters = {
     term: termParam,
-    channel: channelUuid,
+    channel: channelFilter.value,
     severity,
   };
 
@@ -101,11 +105,11 @@ export default async function WatchHitsPage({
             </FilterField>
 
             <FilterField label="Channel">
-              <Select name="channel" defaultValue={channelUuid ?? ""}>
+              <Select name="channel" defaultValue={channelFilter.value ?? ""}>
                 <option value="">Alle Channels</option>
                 {channels.map((channel) => (
-                  <option key={channel.uuid} value={channel.uuid}>
-                    {channel.name}
+                  <option key={channel.twitchId} value={channel.twitchId}>
+                    {channel.label}
                   </option>
                 ))}
               </Select>

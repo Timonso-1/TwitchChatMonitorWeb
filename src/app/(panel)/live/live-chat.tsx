@@ -6,13 +6,14 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import type { ChannelFilterOption } from "@/lib/channel-filter";
 import { emptyFeedState, mergeBatch, type LiveChatPayload } from "@/lib/live-chat-feed";
 import { cn, formatNumber } from "@/lib/utils";
 import { LiveChatTable } from "./live-chat-table";
 
 interface LiveChatProps {
-  channels: Array<{ uuid: string; name: string }>;
-  /** Vorausgewählter Channel aus der URL. */
+  channels: ChannelFilterOption[];
+  /** Vorausgewählte Twitch-ID aus der URL, bereits normalisiert. */
   initialChannel?: string;
 }
 
@@ -63,7 +64,11 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
 
     try {
       const params = new URLSearchParams();
-      if (channel) params.set("channel", channel);
+
+      // Gefiltert wird über channel_uuid; die Auswahl trägt die Twitch-ID, die
+      // auf mehrere UUIDs zeigen kann (Channel geloescht und neu angelegt).
+      const selected = channels.find((entry) => entry.twitchId === channel);
+      if (selected) params.set("channel", selected.uuids.join(","));
       params.set("after", String(latestId.current));
       params.set("modAfter", String(modCursor.current));
 
@@ -90,7 +95,7 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
     } finally {
       inFlight.current = false;
     }
-  }, [channel]);
+  }, [channel, channels]);
 
   // Abrufschleife
   React.useEffect(() => {
@@ -136,8 +141,8 @@ export function LiveChat({ channels, initialChannel }: LiveChatProps) {
           <Select value={channel} onChange={(event) => setChannel(event.target.value)}>
             <option value="">Alle Channels</option>
             {channels.map((entry) => (
-              <option key={entry.uuid} value={entry.uuid}>
-                {entry.name}
+              <option key={entry.twitchId} value={entry.twitchId}>
+                {entry.label}
               </option>
             ))}
           </Select>

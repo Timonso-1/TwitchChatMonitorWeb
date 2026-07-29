@@ -97,6 +97,20 @@ const updateSchema = channelSchema.extend({
   uuid: z.string().uuid("Ungültige Channel-ID."),
 });
 
+/**
+ * MySQL 1451: eine andere Tabelle verweist noch per Fremdschlüssel auf die Zeile.
+ * Sollte nach sql/008_drop_channel_fks.sql nicht mehr auftreten, faengt aber
+ * spaeter wieder eingespielte Constraints ab, statt eine 500 zu werfen.
+ */
+function isForeignKeyViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "errno" in error &&
+    (error as { errno?: unknown }).errno === 1451
+  );
+}
+
 export async function updateChannelAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { session, error } = await guard(PERMISSIONS.CHANNELS_UPDATE);
   if (!session) return error!;
@@ -171,7 +185,16 @@ export async function deleteChannelAction(_prev: ActionState, formData: FormData
     });
   }
 
-  await db.delete(channels).where(eq(channels.uuid, uuid));
+  try {
+    await db.delete(channels).where(eq(channels.uuid, uuid));
+  } catch (error) {
+    if (!isForeignKeyViolation(error)) throw error;
+
+    return errorState(
+      "Der Channel kann nicht gelöscht werden, weil die Datenbank noch Fremdschlüssel auf ihn hält. " +
+        "Bitte sql/008_drop_channel_fks.sql einspielen oder den Channel stattdessen deaktivieren.",
+    );
+  }
 
   await writeAudit({
     action: AUDIT_ACTIONS.CHANNEL_DELETED,
