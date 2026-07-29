@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { and, count, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { buildChannelFilterOptions, type ChannelFilterOption } from "@/lib/channel-filter";
@@ -325,7 +326,7 @@ async function registeredChannelNames(): Promise<Map<string, string>> {
  * werden nur die so bestimmten jüngsten Zeilen über den Primärschlüssel geholt.
  * Damit gilt je UUID der aktuellste aufgezeichnete Name.
  */
-export async function listChannelFilterOptions(source: ChannelDataSource): Promise<ChannelFilterOption[]> {
+async function loadChannelFilterOptions(source: ChannelDataSource): Promise<ChannelFilterOption[]> {
   const columns = SOURCE_COLUMNS[source];
   const table = SOURCE_TABLES[source];
 
@@ -347,4 +348,40 @@ export async function listChannelFilterOptions(source: ChannelDataSource): Promi
   ]);
 
   return buildChannelFilterOptions(rows, registered);
+}
+
+/**
+ * Wie lange eine Optionsliste gilt.
+ *
+ * Die Liste ändert sich nur, wenn ein Channel erstmals aufzeichnet, umbenannt
+ * oder gelöscht wird – alles seltene Ereignisse. Eine Minute Verzögerung ist
+ * unkritisch und entspricht dem Wert, den auch der Channel-Zähler der
+ * Seitenleiste verwendet.
+ */
+const OPTIONS_REVALIDATE = 60;
+
+/**
+ * Gecachte Fassung je Quelle.
+ *
+ * Ohne Cache kostet die Liste drei Abfragen, und sie steht auf sieben Seiten vor
+ * der eigentlichen Datenabfrage – sie muss die Twitch-ID aus dem Parameter erst
+ * zu den UUIDs auflösen. Bei der Latenz zur Datenbank summiert sich das je
+ * Seitenaufruf spürbar, obwohl sich das Ergebnis fast nie ändert.
+ */
+const CACHED_OPTIONS: Record<ChannelDataSource, () => Promise<ChannelFilterOption[]>> = {
+  messages: unstable_cache(() => loadChannelFilterOptions("messages"), ["channel-filter-options", "messages"], {
+    revalidate: OPTIONS_REVALIDATE,
+  }),
+  events: unstable_cache(() => loadChannelFilterOptions("events"), ["channel-filter-options", "events"], {
+    revalidate: OPTIONS_REVALIDATE,
+  }),
+  moderation_actions: unstable_cache(
+    () => loadChannelFilterOptions("moderation_actions"),
+    ["channel-filter-options", "moderation_actions"],
+    { revalidate: OPTIONS_REVALIDATE },
+  ),
+};
+
+export function listChannelFilterOptions(source: ChannelDataSource): Promise<ChannelFilterOption[]> {
+  return CACHED_OPTIONS[source]();
 }
