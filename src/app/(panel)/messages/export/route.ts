@@ -4,11 +4,9 @@ import { AUDIT_ACTIONS, writeAudit } from "@/lib/audit";
 import { AuthorizationError, assertPermission } from "@/lib/auth/guard";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { resolveChannelFilter } from "@/lib/channel-filter";
-import { buildCsv, csvHeaders } from "@/lib/csv";
+import { EXPORT_LIMIT, buildCsv, csvHeaders } from "@/lib/csv";
 import { listChannelFilterOptions } from "@/lib/queries/channels";
 import { exportMessages } from "@/lib/queries/twitch";
-
-const EXPORT_LIMIT = 10_000;
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,6 +28,7 @@ export async function GET(request: NextRequest) {
     };
 
     const rows = await exportMessages(filters, EXPORT_LIMIT);
+    const truncated = rows.length >= EXPORT_LIMIT;
 
     const csv = buildCsv(
       ["Zeitpunkt", "Channel", "Benutzername", "Anzeigename", "Mod", "Sub", "VIP", "Bits", "Nachricht"],
@@ -51,10 +50,10 @@ export async function GET(request: NextRequest) {
       actorUuid: session.user.uuid,
       actorName: session.user.username,
       targetType: "messages",
-      metadata: { rows: rows.length, filters, truncated: rows.length >= EXPORT_LIMIT },
+      metadata: { rows: rows.length, filters, truncated },
     });
 
-    return new NextResponse(csv, { headers: csvHeaders("nachrichten") });
+    return new NextResponse(csv, { headers: csvHeaders("nachrichten", truncated) });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return NextResponse.json({ error: error.message }, { status: 403 });

@@ -34,13 +34,29 @@ export function buildCsv(header: string[], rows: unknown[][]): string {
   return `﻿${lines.join("\r\n")}`;
 }
 
-/** Antwort-Header für einen CSV-Download. */
-export function csvHeaders(filenamePrefix: string): HeadersInit {
+/**
+ * Obergrenze für alle CSV-Exporte.
+ *
+ * Liegt hier und nicht in den einzelnen Routen, damit die Seiten dieselbe Zahl
+ * anzeigen können, die die Route tatsächlich anwendet.
+ */
+export const EXPORT_LIMIT = 10_000;
+
+/**
+ * Antwort-Header für einen CSV-Download.
+ *
+ * Bei einer gekappten Datei wandert der Hinweis in den Dateinamen. Die CSV
+ * selbst bleibt unangetastet – eine Kommentarzeile wäre kein gültiges CSV und
+ * würde Tabellenprogramme durcheinanderbringen. So sieht man auch Wochen später
+ * noch, dass die Datei unvollständig ist.
+ */
+export function csvHeaders(filenamePrefix: string, truncated = false): HeadersInit {
   const date = new Date().toISOString().slice(0, 10);
+  const suffix = truncated ? `-gekappt-bei-${EXPORT_LIMIT}` : "";
 
   return {
     "Content-Type": "text/csv; charset=utf-8",
-    "Content-Disposition": `attachment; filename="${filenamePrefix}-${date}.csv"`,
+    "Content-Disposition": `attachment; filename="${filenamePrefix}-${date}${suffix}.csv"`,
     "Cache-Control": "no-store",
   };
 }
