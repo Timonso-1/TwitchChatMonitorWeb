@@ -35,7 +35,7 @@ export default async function DashboardPage({
     <>
       <PageHeader
         title={`Willkommen zurück, ${greeting}`}
-        description={`Überblick über die Aktivität in ${rangeSentence(range)}.`}
+        description={`Überblick über die Aktivit in ${rangeSentence(range)}.`}
         actions={
           <>
             <Suspense fallback={<BotStatusBadgeSkeleton />}>
