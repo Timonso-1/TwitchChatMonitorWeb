@@ -31,7 +31,7 @@ function initials(name: string): string {
 /**
  * Rundes Profilbild mit Initialen-Fallback.
  * Bewusst ein natives img: die Twitch-CDN-Domain müsste sonst in
- * next.config.ts freigegeben werden, und Bildoptimierung bringt hier nichts.
+ * next.config.mjs freigegeben werden, und Bildoptimierung bringt hier nichts.
  */
 export function ViewerAvatar({ name, imageUrl, color, size = "md", className }: ViewerAvatarProps) {
   const base = cn(

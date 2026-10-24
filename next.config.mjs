@@ -1,10 +1,10 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { NextConfig } from "next";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   // Verhindert, dass Next.js die Workspace-Root über dem Projekt wählt
   // (z. B. wegen einer package-lock.json im Benutzerverzeichnis).
   outputFileTracingRoot: projectRoot,
